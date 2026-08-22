@@ -15,3 +15,4 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0011](BL-0011-conformance-score.md) | Score purity, complexity, and quality against the platonic ideals | idea | ? | ? | ? | repo | idea |  |
 | [BL-0012](BL-0012-tool-skill-invocation-view.md) | Show skill and tool invocation history in dashboard | idea | ? | ? | ? | dashboard | idea |  |
 | [BL-0013](BL-0013-pie-charts.md) | Pie charts for usage/backlog breakdowns, live-updating | idea | ? | ? | ? | dashboard | idea |  |
+| [BL-0014](BL-0014-commit-session-correlation.md) | Correlate git commits to agent sessions in dashboard | idea | ? | ? | ? | dashboard | idea |  |
