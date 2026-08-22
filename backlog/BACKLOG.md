@@ -17,3 +17,4 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0013](BL-0013-pie-charts.md) | Pie charts for usage/backlog breakdowns, live-updating | idea | ? | ? | ? | dashboard | idea |  |
 | [BL-0014](BL-0014-commit-session-correlation.md) | Correlate git commits to agent sessions in dashboard | idea | ? | ? | ? | dashboard | idea |  |
 | [BL-0015](BL-0015-workflow-hook-graph.md) | Diagram which hooks fire across different agent workflow shapes | idea | ? | ? | ? | repo | idea |  |
+| [BL-0016](BL-0016-code-overview-browser.md) | Build a code overview browser separate from the observability dashboard | idea | ? | ? | ? | repo | idea |  |
