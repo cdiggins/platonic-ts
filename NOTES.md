@@ -19,6 +19,20 @@ This file is a first-class deliverable alongside the code.
 - Tests: 23 passing (parse valid/invalid/defaults, render round-trip, sort order, missing dir, subdirs skipped).
 - Gate: typecheck clean (backlog only); vitest 23/23 pass.
 
+### Supervisor — wave 1 integration
+
+- Wave 1 outcome: 3 fenced tracks, zero merge conflicts, zero contract friction reported.
+  Full gate 50/50 green on first integration run; main.ts composition typechecked against
+  real seams unchanged. Fence-by-package + supervisor-owned contracts worked as designed.
+- Token cost (subagent output tokens): doc-extraction 53k (sonnet), Track A transcripts 80k
+  (sonnet), Track B backlog 46.5k (haiku), Track C dashboard 73k (sonnet). Haiku handled the
+  well-specified track fine — spec precision, not model strength, was the binding constraint.
+- Dashboard live on :4747 against real transcripts within ~2h of wave start. Gaps found by
+  looking at it: (1) subagent/task transcripts live in per-session temp dirs
+  (`%LOCALAPPDATA%\Temp\claude\<proj>\<session>\tasks\*.output`) which non-recursive discovery
+  misses; (2) agent labels are raw session UUIDs — unreadable; (3) all-time usage totals mix
+  old sessions with current work. All queued as BL-0007.
+
 ### Supervisor — wave 1 setup
 
 - Dashboard reads Claude Code transcripts directly (passive session-log parsing) rather than

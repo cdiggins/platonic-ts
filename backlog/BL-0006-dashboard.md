@@ -1,7 +1,7 @@
 ---
 id: BL-0006
 title: Live observability dashboard
-status: doing
+status: done
 priority: 1
 created: 2026-08-22
 ---
