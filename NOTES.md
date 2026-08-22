@@ -97,6 +97,60 @@ Gate results (this fence): `npm run typecheck` — clean. `npx vitest run packag
 — 15/15 passed. Full `npm run check` — typecheck clean, vitest 50/50 passed (all four package
 test files, including dashboard and backlog).
 
+### Track E — BL-0007 (subagent transcripts, labels) + lint cleanup
+
+Files: `packages/transcripts/src/index.ts`, `packages/transcripts/test/transcripts.test.ts`,
+`packages/transcripts/test/fixtures/sample.jsonl`, `packages/dashboard/test/server.test.ts`.
+
+New export: `discoverSessionTaskDirs(tempRoot): Promise<readonly string[]>` — lists direct
+child dirs of `tempRoot`, keeps only those with an existing `tasks` subdir, resolved to
+absolute paths. Missing `tempRoot` -> `[]`. Task transcripts inside are `*.output` JSONL,
+already matched by the existing `discoverTranscriptFiles` once given these dirs — supervisor
+wires `discoverSessionTaskDirs(tempRoot)` results into the dirs list passed to
+`pollTranscripts`/`discoverTranscriptFiles` in `main.ts`.
+
+Real custom-title line shape (verified against live files under
+`C:\Users\cdigg\.claude\projects\C--Users-cdigg-git-platonic-ts\`):
+`{"type":"custom-title","customTitle":"...","sessionId":"..."}` — matches the seam sketch
+exactly, BUT the line carries **no `timestamp` field at all**. The prior early-return
+(`parseTimestamp` gate before the type switch) silently dropped every custom-title line pre-
+Wave-2. Fixed by moving the custom-title check ahead of the timestamp gate and giving it a
+fixed sentinel `timestamp: 0` (kind `'other'`, zero tokens, `title` set) — deterministic and
+JSON-safe (unlike `NaN`/`Infinity`, which `JSON.stringify` turns into `null` and would corrupt
+the SSE/state payload). `computeStatuses` picks `label` via the same
+"reverse-scan-the-timestamp-sorted-group-for-the-last-defined-field" pattern already used for
+model/tool/snippet/session — since all custom-title entries share the same sentinel timestamp,
+a stable sort preserves their original (chronological) relative order, so the reverse-find
+still lands on the most-recently-emitted title; falls back to `basename` when a file has none.
+Also saw a `last-prompt` variant (`{"type":"last-prompt","lastPrompt":"...","leafUuid":"...",
+"sessionId":"..."}`, also no timestamp) carrying the literal first user prompt — not wired to
+`title` per the seam's scope (only custom-title was requested); flagging here in case a future
+label fallback wants it.
+
+Lint cleanup (14 -> 0 errors in `packages/transcripts` + `packages/dashboard`, no
+eslint-disable, no rule changes): `transcripts/src/index.ts` — removed two unnecessary
+`as ActivityKind` assertions (object-literal context already narrows the string literal); every
+`array.push`/`map.set` mutation site (`discoverTranscriptFiles`, `pollTranscripts`,
+`computeStatuses`, `summarizeUsage`) rebuilt as an immutable derivation: `Promise.all(...).flat()`
+/`.flatMap()` for discovery and polling, `[...new Set(...)].map(...)` grouping (replacing
+`Map`-based accumulation) for statuses/usage aggregation, `new Map(entries)` constructor instead
+of repeated `.set()`. Confirmed the existing `[...group].sort(...)` / `[...sorted].reverse()`
+idiom (spread-then-mutate a freshly created array) is lint-clean, so every new sort reuses that
+exact idiom. `dashboard/test/server.test.ts` — `require-await` fixed by dropping `async` from
+providers that never awaited (`() => Promise.resolve(snapshot)` / `() => Promise.reject(...)`);
+`no-unsafe-assignment` on `res.json()`/`JSON.parse()` fixed with two local helpers
+(`readJson`, `parseJson`) that immediately cast the `any` result to `unknown` before assignment.
+
+Gate results (this fence): `npm run typecheck` — clean. `npx eslint packages/transcripts
+packages/dashboard` — 0 errors (was 14). `npx vitest run packages/transcripts
+packages/dashboard` — 26/26 passed (20 transcripts incl. 5 new: discoverSessionTaskDirs x2,
+custom-title parse x2, computeStatuses title-label x1). Full `npm run check` — typecheck clean,
+vitest 71/71 passed across all six package test files.
+
+No contract friction, no dependency requests. Did not touch `packages/dashboard/src/main.ts`
+(supervisor-owned) — `discoverSessionTaskDirs` is exported and ready but unwired until the
+supervisor composes it into the dirs list in `main.ts`.
+
 ### Track D — check seam (`platonic check`)
 
 Files: `packages/check/src/ratchet.ts`, `src/scan.ts`, `src/run.ts`, `src/index.ts`,

@@ -58,12 +58,37 @@ export const parseTranscriptLine = (file: string, line: string): AgentActivity |
   }
   if (!isRecord(parsed)) return undefined
 
-  const timestamp = parseTimestamp(parsed.timestamp)
-  if (timestamp === undefined) return undefined
-
   const sessionId = asString(parsed.sessionId)
   const isSidechain = parsed.isSidechain === true
   const type = asString(parsed.type)
+
+  // custom-title lines carry no timestamp field ({"type":"custom-title","customTitle":"...",
+  // "sessionId":"..."} — verified against real transcripts). Use a fixed sentinel timestamp
+  // (0) so the record stays a valid, deterministic AgentActivity; computeStatuses only uses
+  // relative order among title-bearing activities, never this value's absolute position.
+  if (type === 'custom-title') {
+    const customTitle = asString(parsed.customTitle)
+    if (customTitle === undefined) return undefined
+    const activity: AgentActivity = {
+      file,
+      sessionId,
+      timestamp: 0,
+      isSidechain,
+      kind: 'other',
+      model: undefined,
+      toolName: undefined,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+      snippet: undefined,
+      title: customTitle,
+    }
+    return activity
+  }
+
+  const timestamp = parseTimestamp(parsed.timestamp)
+  if (timestamp === undefined) return undefined
 
   const base = { file, sessionId, timestamp, isSidechain }
 
@@ -79,7 +104,7 @@ export const parseTranscriptLine = (file: string, line: string): AgentActivity |
 
     const activity: AgentActivity = {
       ...base,
-      kind: 'assistant' as ActivityKind,
+      kind: 'assistant',
       model,
       toolName,
       inputTokens: usage ? asNumber(usage.input_tokens) : 0,
@@ -126,7 +151,7 @@ export const parseTranscriptLine = (file: string, line: string): AgentActivity |
 
   const activity: AgentActivity = {
     ...base,
-    kind: 'other' as ActivityKind,
+    kind: 'other',
     model: undefined,
     toolName: undefined,
     inputTokens: 0,
@@ -147,21 +172,50 @@ const isTranscriptFileName = (name: string): boolean => name.endsWith('.jsonl') 
 export const discoverTranscriptFiles = async (
   dirs: readonly string[],
 ): Promise<readonly string[]> => {
-  const results: string[] = []
-  for (const dir of dirs) {
-    let entries
-    try {
-      entries = await readdir(dir, { withFileTypes: true })
-    } catch {
-      continue
-    }
-    for (const entry of entries) {
-      if (entry.isFile() && isTranscriptFileName(entry.name)) {
-        results.push(resolve(join(dir, entry.name)))
+  const perDir = await Promise.all(
+    dirs.map(async (dir): Promise<readonly string[]> => {
+      let entries
+      try {
+        entries = await readdir(dir, { withFileTypes: true })
+      } catch {
+        return []
       }
-    }
+      return entries
+        .filter((entry) => entry.isFile() && isTranscriptFileName(entry.name))
+        .map((entry) => resolve(join(dir, entry.name)))
+    }),
+  )
+  return perDir.flat()
+}
+
+// Subagent task transcripts live under `<tempRoot>\<session-dir>\tasks\*.output`. Returns the
+// `tasks` directories that actually exist (one level under tempRoot); missing tempRoot -> [].
+export const discoverSessionTaskDirs = async (
+  tempRoot: string,
+): Promise<readonly string[]> => {
+  let entries
+  try {
+    entries = await readdir(tempRoot, { withFileTypes: true })
+  } catch {
+    return []
   }
-  return results
+
+  const candidates = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => resolve(join(tempRoot, entry.name, 'tasks')))
+
+  const checked = await Promise.all(
+    candidates.map(async (dir): Promise<string | undefined> => {
+      try {
+        const st = await stat(dir)
+        return st.isDirectory() ? dir : undefined
+      } catch {
+        return undefined
+      }
+    }),
+  )
+
+  return checked.filter((dir): dir is string => dir !== undefined)
 }
 
 // ---------------------------------------------------------------------------
@@ -196,38 +250,47 @@ const readAppended = async (
   }
 }
 
+type FilePollResult = {
+  readonly file: string
+  readonly tail: FileTailState
+  readonly activities: readonly AgentActivity[]
+}
+
 export const pollTranscripts = async (
   dirs: readonly string[],
   state: TailState,
 ): Promise<{ readonly state: TailState; readonly activities: readonly AgentActivity[] }> => {
   const files = await discoverTranscriptFiles(dirs)
-  const activities: AgentActivity[] = []
-  const nextFiles = new Map<string, FileTailState>()
 
-  for (const file of files) {
-    let size: number
-    try {
-      const st = await stat(file)
-      size = st.size
-    } catch {
-      continue
-    }
+  const results = await Promise.all(
+    files.map(async (file): Promise<FilePollResult | undefined> => {
+      let size: number
+      try {
+        const st = await stat(file)
+        size = st.size
+      } catch {
+        return undefined
+      }
 
-    const prev = state.files.get(file) ?? { offset: 0, remainder: '' }
-    const shrunk = size < prev.offset
-    const offset = shrunk ? 0 : prev.offset
-    const remainder = shrunk ? '' : prev.remainder
+      const prev = state.files.get(file) ?? { offset: 0, remainder: '' }
+      const shrunk = size < prev.offset
+      const offset = shrunk ? 0 : prev.offset
+      const remainder = shrunk ? '' : prev.remainder
 
-    const chunk = await readAppended(file, size, offset)
-    const { lines, rest } = splitJsonlChunk(remainder, chunk)
+      const chunk = await readAppended(file, size, offset)
+      const { lines, rest } = splitJsonlChunk(remainder, chunk)
 
-    for (const line of lines) {
-      const activity = parseTranscriptLine(file, line)
-      if (activity !== undefined) activities.push(activity)
-    }
+      const activities = lines
+        .map((line) => parseTranscriptLine(file, line))
+        .filter((a): a is AgentActivity => a !== undefined)
 
-    nextFiles.set(file, { offset: size, remainder: rest })
-  }
+      return { file, tail: { offset: size, remainder: rest }, activities }
+    }),
+  )
+
+  const kept = results.filter((r): r is FilePollResult => r !== undefined)
+  const nextFiles = new Map(kept.map((r) => [r.file, r.tail] as const))
+  const activities = kept.flatMap((r) => r.activities)
 
   return { state: { files: nextFiles }, activities }
 }
@@ -240,46 +303,44 @@ export const computeStatuses = (
   activities: readonly AgentActivity[],
   now: number,
 ): readonly AgentStatus[] => {
-  const byFile = new Map<string, AgentActivity[]>()
-  for (const a of activities) {
-    const list = byFile.get(a.file)
-    if (list) list.push(a)
-    else byFile.set(a.file, [a])
-  }
+  const files = [...new Set(activities.map((a) => a.file))]
 
-  const statuses: AgentStatus[] = []
-  for (const [file, group] of byFile) {
-    const sorted = [...group].sort((a, b) => a.timestamp - b.timestamp)
-    const last = sorted[sorted.length - 1]
-    if (!last) continue
+  const statuses = files
+    .map((file): AgentStatus | undefined => {
+      const group = activities.filter((a) => a.file === file)
+      const sorted = [...group].sort((a, b) => a.timestamp - b.timestamp)
+      const last = sorted[sorted.length - 1]
+      if (!last) return undefined
 
-    const lastWithModel = [...sorted].reverse().find((a) => a.model !== undefined)
-    const lastWithTool = [...sorted].reverse().find((a) => a.toolName !== undefined)
-    const lastWithSnippet = [...sorted].reverse().find((a) => a.snippet !== undefined)
-    const lastWithSession = [...sorted].reverse().find((a) => a.sessionId !== undefined)
+      const lastWithModel = [...sorted].reverse().find((a) => a.model !== undefined)
+      const lastWithTool = [...sorted].reverse().find((a) => a.toolName !== undefined)
+      const lastWithSnippet = [...sorted].reverse().find((a) => a.snippet !== undefined)
+      const lastWithSession = [...sorted].reverse().find((a) => a.sessionId !== undefined)
+      const lastWithTitle = [...sorted].reverse().find((a) => a.title !== undefined)
 
-    const totalInputTokens = sorted.reduce((sum, a) => sum + a.inputTokens, 0)
-    const totalOutputTokens = sorted.reduce((sum, a) => sum + a.outputTokens, 0)
+      const totalInputTokens = sorted.reduce((sum, a) => sum + a.inputTokens, 0)
+      const totalOutputTokens = sorted.reduce((sum, a) => sum + a.outputTokens, 0)
 
-    const ext = extname(file)
-    const label = basename(file, ext)
+      const ext = extname(file)
+      const label = lastWithTitle?.title ?? basename(file, ext)
 
-    statuses.push({
-      file,
-      sessionId: lastWithSession?.sessionId,
-      label,
-      isSidechain: last.isSidechain,
-      lastActivityAt: last.timestamp,
-      lastModel: lastWithModel?.model,
-      lastTool: lastWithTool?.toolName,
-      lastSnippet: lastWithSnippet?.snippet,
-      totalInputTokens,
-      totalOutputTokens,
-      active: now - last.timestamp <= ACTIVE_WINDOW_MS,
+      return {
+        file,
+        sessionId: lastWithSession?.sessionId,
+        label,
+        isSidechain: last.isSidechain,
+        lastActivityAt: last.timestamp,
+        lastModel: lastWithModel?.model,
+        lastTool: lastWithTool?.toolName,
+        lastSnippet: lastWithSnippet?.snippet,
+        totalInputTokens,
+        totalOutputTokens,
+        active: now - last.timestamp <= ACTIVE_WINDOW_MS,
+      }
     })
-  }
+    .filter((s): s is AgentStatus => s !== undefined)
 
-  return statuses.sort((a, b) => a.file.localeCompare(b.file))
+  return [...statuses].sort((a, b) => a.file.localeCompare(b.file))
 }
 
 export const summarizeUsage = (
@@ -292,38 +353,26 @@ export const summarizeUsage = (
   const totalCacheReadTokens = activities.reduce((sum, a) => sum + a.cacheReadTokens, 0)
   const totalCacheCreationTokens = activities.reduce((sum, a) => sum + a.cacheCreationTokens, 0)
 
-  const byModelMap = new Map<string, ModelUsage>()
-  for (const a of activities) {
-    if (a.model === undefined) continue
-    const existing = byModelMap.get(a.model)
-    const next: ModelUsage = existing
-      ? {
-          model: a.model,
-          inputTokens: existing.inputTokens + a.inputTokens,
-          outputTokens: existing.outputTokens + a.outputTokens,
-          cacheReadTokens: existing.cacheReadTokens + a.cacheReadTokens,
-          cacheCreationTokens: existing.cacheCreationTokens + a.cacheCreationTokens,
-          messages: existing.messages + 1,
-        }
-      : {
-          model: a.model,
-          inputTokens: a.inputTokens,
-          outputTokens: a.outputTokens,
-          cacheReadTokens: a.cacheReadTokens,
-          cacheCreationTokens: a.cacheCreationTokens,
-          messages: 1,
-        }
-    byModelMap.set(a.model, next)
-  }
+  const models = [...new Set(activities.map((a) => a.model).filter((m): m is string => m !== undefined))]
 
-  const byModel = [...byModelMap.values()].sort((a, b) => b.outputTokens - a.outputTokens)
+  const byModel = models.map((model): ModelUsage => {
+    const group = activities.filter((a) => a.model === model)
+    return {
+      model,
+      inputTokens: group.reduce((sum, a) => sum + a.inputTokens, 0),
+      outputTokens: group.reduce((sum, a) => sum + a.outputTokens, 0),
+      cacheReadTokens: group.reduce((sum, a) => sum + a.cacheReadTokens, 0),
+      cacheCreationTokens: group.reduce((sum, a) => sum + a.cacheCreationTokens, 0),
+      messages: group.length,
+    }
+  })
 
   return {
     totalInputTokens,
     totalOutputTokens,
     totalCacheReadTokens,
     totalCacheCreationTokens,
-    byModel,
+    byModel: [...byModel].sort((a, b) => b.outputTokens - a.outputTokens),
     outputTokensPerMinute: outputTokensPerMinute(activities, now, windowMs),
     windowMs,
   }

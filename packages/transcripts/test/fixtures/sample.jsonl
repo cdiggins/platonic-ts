@@ -6,3 +6,4 @@
 {"type":"queue-operation","operation":"enqueue","timestamp":"2026-08-22T10:00:25.000Z","sessionId":"sess-1","content":"queued"}
 {"type":"summary","content":"a short summary with no timestamp"}
 not valid json at all {{{
+{"type":"custom-title","customTitle":"Agent development framework documentation","sessionId":"sess-1"}

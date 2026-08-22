@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   computeStatuses,
   createTailState,
+  discoverSessionTaskDirs,
   discoverTranscriptFiles,
   parseTranscriptLine,
   pollTranscripts,
@@ -87,6 +88,22 @@ describe('parseTranscriptLine', () => {
     expect(activity).toBeUndefined()
   })
 
+  it('parses a custom-title line (no timestamp field) into a titled other activity', async () => {
+    const lines = await loadFixtureLines()
+    const activity = parseTranscriptLine(FIXTURE, lines[8]!)
+    expect(activity).toBeDefined()
+    expect(activity?.kind).toBe('other')
+    expect(activity?.title).toBe('Agent development framework documentation')
+    expect(activity?.sessionId).toBe('sess-1')
+    expect(activity?.inputTokens).toBe(0)
+    expect(activity?.outputTokens).toBe(0)
+  })
+
+  it('returns undefined for a custom-title line missing customTitle', () => {
+    const line = JSON.stringify({ type: 'custom-title', sessionId: 's' })
+    expect(parseTranscriptLine('f', line)).toBeUndefined()
+  })
+
   it('returns undefined for an empty line', () => {
     expect(parseTranscriptLine(FIXTURE, '')).toBeUndefined()
     expect(parseTranscriptLine(FIXTURE, '   ')).toBeUndefined()
@@ -119,6 +136,28 @@ describe('discoverTranscriptFiles', () => {
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
+  })
+})
+
+describe('discoverSessionTaskDirs', () => {
+  it('returns tasks dirs for session dirs that have them, skipping ones that do not', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'transcripts-sessions-'))
+    try {
+      await mkdir(join(root, 'session-a', 'tasks'), { recursive: true })
+      await mkdir(join(root, 'session-b'), { recursive: true }) // no tasks subdir
+      await writeFile(join(root, 'not-a-dir'), '') // file, not a directory
+
+      const found = await discoverSessionTaskDirs(root)
+      const names = found.map((f) => f.split(/[\\/]/).slice(-2).join('/'))
+      expect(names).toEqual(['session-a/tasks'])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('returns an empty array when tempRoot does not exist', async () => {
+    const found = await discoverSessionTaskDirs(join(tmpdir(), 'does-not-exist-transcripts-root'))
+    expect(found).toEqual([])
   })
 })
 
@@ -239,6 +278,26 @@ describe('computeStatuses', () => {
     expect(b.label).toBe('b')
     expect(b.active).toBe(false)
     expect(b.isSidechain).toBe(true)
+  })
+
+  it('uses the most recent custom-title as label when present, else falls back to basename', () => {
+    const now = Date.parse('2026-08-22T10:01:00.000Z')
+    const activities = [
+      parseTranscriptLine('/a.jsonl', JSON.stringify({
+        type: 'assistant', timestamp: '2026-08-22T10:00:00.000Z', sessionId: 's1', isSidechain: false,
+        message: { model: 'model-a', content: [{ type: 'text', text: 'hi' }], usage: {} },
+      }))!,
+      parseTranscriptLine('/a.jsonl', JSON.stringify({ type: 'custom-title', customTitle: 'First title', sessionId: 's1' }))!,
+      parseTranscriptLine('/a.jsonl', JSON.stringify({
+        type: 'assistant', timestamp: '2026-08-22T10:00:30.000Z', sessionId: 's1', isSidechain: false,
+        message: { model: 'model-a', content: [{ type: 'text', text: 'more' }], usage: {} },
+      }))!,
+      parseTranscriptLine('/a.jsonl', JSON.stringify({ type: 'custom-title', customTitle: 'Latest title', sessionId: 's1' }))!,
+    ]
+
+    const statuses = computeStatuses(activities, now)
+    const a = statuses.find((s) => s.file === '/a.jsonl')!
+    expect(a.label).toBe('Latest title')
   })
 })
 

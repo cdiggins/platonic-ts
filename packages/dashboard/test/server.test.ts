@@ -59,7 +59,12 @@ const snapshot: DashboardSnapshot = {
   ],
 }
 
-const okProvider: SnapshotProvider = async () => snapshot
+const okProvider: SnapshotProvider = () => Promise.resolve(snapshot)
+
+// `Response#json()` and `JSON.parse` are typed `any`; narrow to `unknown` immediately so
+// assigning the parsed value never trips no-unsafe-assignment.
+const readJson = async (res: Response): Promise<unknown> => (await res.json()) as unknown
+const parseJson = (text: string): unknown => JSON.parse(text) as unknown
 
 describe('startDashboard', () => {
   let close: (() => Promise<void>) | undefined
@@ -89,14 +94,12 @@ describe('startDashboard', () => {
     const res = await fetch(`http://localhost:${started.port}/api/state`)
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('application/json')
-    const body = await res.json()
+    const body = await readJson(res)
     expect(body).toEqual(snapshot)
   })
 
   it('returns 500 from /api/state when the provider throws', async () => {
-    const failingProvider: SnapshotProvider = async () => {
-      throw new Error('boom')
-    }
+    const failingProvider: SnapshotProvider = () => Promise.reject(new Error('boom'))
     const started = await startDashboard({ port: 0, provider: failingProvider, pollIntervalMs: 50 })
     close = started.close
 
@@ -131,7 +134,7 @@ describe('startDashboard', () => {
       .split('\n')
       .find((line) => line.startsWith('data: '))
     expect(dataLine).toBeDefined()
-    const parsed = JSON.parse(dataLine!.slice('data: '.length))
+    const parsed = parseJson(dataLine!.slice('data: '.length))
     expect(parsed).toEqual(snapshot)
   })
 
