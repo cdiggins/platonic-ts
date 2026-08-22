@@ -137,6 +137,7 @@ Early design notes. Everything here is a first draft, and nothing is implemented
 * [TDD for Agent-Driven Development](docs/tdd-for-agents-2026-08-22.md) — the evidence on TDD by the book and in practice, what changes with agents, a comparison with Superpowers, and a testing policy proposal.
 * [Evidence for the Unexplored Weak Hypotheses](docs/weak-hypotheses-evidence-2026-08-22.md) — the published record for and against H12 and H14–H19, with a verdict and design implication for each.
 * [Pure Functional Programming for Agent-Driven Development](docs/pure-fp-for-agents-2026-08-22.md) — the pros and cons of pure FP with agents; concludes for a pure functional subset of TypeScript, against pure FP languages and heavy monadic abstraction.
+* [Testing, Gates, Ratchets, and Goldens](docs/testing-gates-ratchets-goldens-2026-08-22.md) — a taxonomy of mechanical enforcement: what each mechanism claims, when it checks, which direction change may move, and who may bless a change to the claim itself.
 * [Claude Code Integration](docs/claude-code-integration-2026-08-22.md) — which hooks, MCP tools, skills, and agents make sense, placed by one rule: checkable rules become hooks, questions become MCP tools, only the uncheckable residue becomes skills.
 
 ## History
