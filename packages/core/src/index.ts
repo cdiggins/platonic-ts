@@ -19,6 +19,9 @@ export type AgentActivity = {
   readonly cacheReadTokens: number
   readonly cacheCreationTokens: number
   readonly snippet: string | undefined
+  // Human-readable session title when the line carries one (custom-title lines).
+  // Optional so wave-1 call sites stay valid; Track E populates it.
+  readonly title?: string | undefined
   readonly isSidechain: boolean
 }
 

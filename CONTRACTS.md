@@ -1,4 +1,24 @@
-# Contracts — fences and seams (wave 1)
+# Contracts — fences and seams
+
+## Wave 2 fences (current)
+
+Supervisor-owned unchanged (plus `eslint.config.js`, `ratchet.json` once created).
+
+| Track | Writes only | Notes |
+|---|---|---|
+| D check | `packages/check/src/**`, `packages/check/test/**`, NOTES.md append | ratchet + platonic check CLI |
+| E observability | `packages/transcripts/**`, `packages/dashboard/src/**` except `main.ts`, `packages/dashboard/test/**`, NOTES.md append | BL-0007 + lint cleanup |
+| S supervisor | everything else | wiring, root scripts, push |
+
+Wave 2 contract additions:
+- `AgentActivity.title: string | undefined` — set from transcript `custom-title` lines
+  (shape: `{"type":"custom-title","customTitle":"...","sessionId":...}` — verify against real
+  transcripts). `computeStatuses` label = most recent title for the file, else basename.
+- New Track E export: `discoverSessionTaskDirs(tempRoot: string): Promise<readonly string[]>`
+  returning existing `<tempRoot>\<session-dir>\tasks` directories (one level deep), for
+  subagent task transcript discovery. Supervisor wires it in main.ts.
+
+## Wave 1 fences and seams (historical)
 
 ## Fences (who writes where)
 
