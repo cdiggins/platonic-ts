@@ -36,7 +36,24 @@ const clientScript = `
     return n + ' B';
   }
 
-  var STATUS_ORDER = ['doing', 'todo', 'blocked', 'done'];
+  var STATUS_ORDER = ['in-progress', 'ready', 'idea', 'done', 'dropped'];
+
+  function initDocsToggle() {
+    var toggle = document.getElementById('docs-toggle');
+    var content = document.getElementById('docs-explanation');
+    if (toggle && content) {
+      toggle.addEventListener('click', function () {
+        var isOpen = content.classList.contains('open');
+        if (isOpen) {
+          content.classList.remove('open');
+          toggle.textContent = '+ How the dashboard works';
+        } else {
+          content.classList.add('open');
+          toggle.textContent = '- How the dashboard works';
+        }
+      });
+    }
+  }
 
   function render(snapshot) {
     var now = Date.now();
@@ -107,7 +124,9 @@ const clientScript = `
         tr.innerHTML =
           '<td>' + escapeHtml(item.id) + '</td>' +
           '<td>' + escapeHtml(item.title) + '</td>' +
-          '<td class="pri">P' + item.priority + '</td>';
+          '<td>' + escapeHtml(item.type) + '</td>' +
+          '<td class="pri">' + escapeHtml(item.priority) + '</td>' +
+          '<td>' + escapeHtml(item.effort) + '</td>';
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
@@ -131,6 +150,8 @@ const clientScript = `
       docsBody.appendChild(tr);
     });
   }
+
+  initDocsToggle();
 
   var es = new EventSource('/api/events');
   es.onmessage = function (ev) {
@@ -191,6 +212,37 @@ export const renderPage = (): string => `<!doctype html>
   .stat { min-width: 100px; }
   .stat .label { font-size: 11px; color: #6b7793; text-transform: uppercase; }
   .stat .value { font-size: 18px; color: #d8dee9; }
+  #docs-toggle {
+    background: none;
+    border: none;
+    color: #8ab4f8;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+    margin-bottom: 12px;
+  }
+  #docs-toggle:hover { text-decoration: underline; }
+  #docs-explanation {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    background: #161b22;
+    border: 1px solid #263043;
+    border-radius: 4px;
+    padding: 0 12px;
+    margin-bottom: 16px;
+  }
+  #docs-explanation.open {
+    max-height: 500px;
+    padding: 12px;
+  }
+  #docs-explanation h3 { font-size: 12px; color: #8ab4f8; text-transform: uppercase; margin: 12px 0 6px; }
+  #docs-explanation h3:first-child { margin-top: 0; }
+  #docs-explanation p { margin: 6px 0; font-size: 12px; line-height: 1.5; color: #c9d1d9; }
+  #docs-explanation ul { margin: 6px 0; padding-left: 20px; font-size: 12px; color: #c9d1d9; }
+  #docs-explanation li { margin: 4px 0; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -203,6 +255,25 @@ export const renderPage = (): string => `<!doctype html>
       <div class="big-number" id="tpm">-</div>
     </div>
   </header>
+
+  <button id="docs-toggle">+ How the dashboard works</button>
+  <div id="docs-explanation">
+    <h3>Agents</h3>
+    <p>Real-time activity of running agents. Shows model, most recent tool, output snippet, and token usage. Green dot = active, gray = inactive.</p>
+    <h3>Usage</h3>
+    <p>Cumulative token metrics across all models and messages:</p>
+    <ul>
+      <li><strong>in</strong> — input tokens (prompt/context)</li>
+      <li><strong>out</strong> — output tokens (completions)</li>
+      <li><strong>cache read</strong> — tokens read from prompt cache</li>
+      <li><strong>cache create</strong> — tokens written to cache</li>
+    </ul>
+    <p>Table breaks down usage by model for cost tracking.</p>
+    <h3>Backlog</h3>
+    <p>Work items grouped by status (in-progress/ready/idea/done/dropped), WorkQuarry schema. Priority p1 (highest) – p3, plus type and effort. Click file links to open in VSCode.</p>
+    <h3>Docs</h3>
+    <p>Project documentation indexed by title and modification time. Monitor docs you care about without leaving the dashboard.</p>
+  </div>
 
   <section>
     <h2>Agents</h2>

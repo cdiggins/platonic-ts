@@ -62,15 +62,33 @@ export type UsageSummary = {
   readonly windowMs: number
 }
 
-export type BacklogStatus = 'todo' | 'doing' | 'done' | 'blocked'
+// WorkQuarry schema (see backlog/decisions/2026-08-22-adopt-workquarry-format.md).
+// idea = captured, untriaged. ready = triaged + pickable. in-progress = being worked.
+// done/dropped = closed (dropped: killed without shipping).
+export type BacklogStatus = 'idea' | 'ready' | 'in-progress' | 'done' | 'dropped'
+
+export type BacklogType = 'feature' | 'debt' | 'bug' | 'idea' | 'problem' | 'retire'
+
+export type BacklogPriority = 'p1' | 'p2' | 'p3' | '?'
+
+export type BacklogEffort = 'S' | 'M' | 'L' | '?'
+
+export type BacklogRisk = 'low' | 'med' | 'high' | '?'
 
 export type BacklogItem = {
   readonly id: string
   readonly title: string
+  readonly type: BacklogType
   readonly status: BacklogStatus
-  readonly priority: number
+  readonly priority: BacklogPriority
+  readonly effort: BacklogEffort
+  readonly risk: BacklogRisk
+  readonly area: string | undefined
+  readonly sprint: string | undefined
   readonly owner: string | undefined
   readonly created: string | undefined
+  readonly closed: string | undefined
+  readonly links: readonly string[]
   readonly file: string
   readonly body: string
 }

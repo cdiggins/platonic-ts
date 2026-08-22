@@ -2,39 +2,61 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseBacklogFile, loadBacklog, renderBacklogItem } from '../src/index.js'
+import {
+  parseBacklogFile,
+  loadBacklog,
+  renderBacklogItem,
+  buildBacklogTable,
+  buildDoneLog,
+  isOpen,
+} from '../src/index.js'
 import type { BacklogItem } from '../../core/src/index.js'
 
+const fullItem: BacklogItem = {
+  id: 'core-001',
+  title: 'Test task',
+  type: 'feature',
+  status: 'ready',
+  priority: 'p1',
+  effort: 'M',
+  risk: 'low',
+  area: 'core',
+  sprint: '2026-01-A',
+  owner: 'alice',
+  created: '2026-08-22',
+  closed: undefined,
+  links: ['docs/notes.md', 'core-002'],
+  file: 'test.md',
+  body: 'Task body here.',
+}
+
 describe('parseBacklogFile', () => {
-  it('parses valid frontmatter with all fields', () => {
+  it('parses valid WorkQuarry frontmatter with all fields', () => {
     const content = `---
-id: BL-0001
+id: core-001
 title: Test task
-status: todo
-priority: 1
+type: feature
+status: ready
+priority: p1
+effort: M
+risk: low
+area: core
+sprint: 2026-01-A
 owner: alice
 created: 2026-08-22
+closed:
+links: [docs/notes.md, core-002]
 ---
 Task body here.`
 
     const item = parseBacklogFile('test.md', content)
-    expect(item).toEqual({
-      id: 'BL-0001',
-      title: 'Test task',
-      status: 'todo',
-      priority: 1,
-      owner: 'alice',
-      created: '2026-08-22',
-      file: 'test.md',
-      body: 'Task body here.',
-    })
+    expect(item).toEqual(fullItem)
   })
 
   it('returns undefined if id is missing', () => {
     const content = `---
 title: Test task
-status: todo
-priority: 1
+status: ready
 ---
 Body`
     expect(parseBacklogFile('test.md', content)).toBeUndefined()
@@ -42,9 +64,8 @@ Body`
 
   it('returns undefined if title is missing', () => {
     const content = `---
-id: BL-0001
-status: todo
-priority: 1
+id: core-001
+status: ready
 ---
 Body`
     expect(parseBacklogFile('test.md', content)).toBeUndefined()
@@ -55,80 +76,45 @@ Body`
     expect(parseBacklogFile('test.md', content)).toBeUndefined()
   })
 
-  it('defaults status to todo if missing', () => {
+  it('defaults status to idea if missing', () => {
     const content = `---
-id: BL-0001
-title: Test
-priority: 2
----
-Body`
-    const item = parseBacklogFile('test.md', content)
-    expect(item?.status).toBe('todo')
-  })
-
-  it('defaults status to todo if invalid', () => {
-    const content = `---
-id: BL-0001
-title: Test
-status: invalid
-priority: 2
----
-Body`
-    const item = parseBacklogFile('test.md', content)
-    expect(item?.status).toBe('todo')
-  })
-
-  it('defaults priority to 3 if missing', () => {
-    const content = `---
-id: BL-0001
+id: core-001
 title: Test
 ---
 Body`
     const item = parseBacklogFile('test.md', content)
-    expect(item?.priority).toBe(3)
+    expect(item?.status).toBe('idea')
   })
 
-  it('defaults priority to 3 if invalid', () => {
+  it('defaults status to idea if invalid and unmapped', () => {
     const content = `---
-id: BL-0001
+id: core-001
 title: Test
-priority: notanumber
+status: bogus
 ---
 Body`
     const item = parseBacklogFile('test.md', content)
-    expect(item?.priority).toBe(3)
+    expect(item?.status).toBe('idea')
   })
 
-  it('trims body whitespace', () => {
+  it('defaults priority/effort/risk/type to unset markers if missing', () => {
     const content = `---
-id: BL-0001
+id: core-001
 title: Test
 ---
-
-   Body with whitespace
-
-`
+Body`
     const item = parseBacklogFile('test.md', content)
-    expect(item?.body).toBe('Body with whitespace')
+    expect(item?.priority).toBe('?')
+    expect(item?.effort).toBe('?')
+    expect(item?.risk).toBe('?')
+    expect(item?.type).toBe('idea')
   })
 
-  it('parses multiline body', () => {
-    const content = `---
-id: BL-0001
-title: Test
----
-Line 1
-Line 2
-Line 3`
-    const item = parseBacklogFile('test.md', content)
-    expect(item?.body).toBe('Line 1\nLine 2\nLine 3')
-  })
-
-  it('accepts valid status values', () => {
-    const statuses = ['todo', 'doing', 'done', 'blocked']
+  it('accepts all valid WorkQuarry status values', () => {
+    const statuses = ['idea', 'ready', 'in-progress', 'done', 'dropped']
     for (const status of statuses) {
       const content = `---
-id: BL-0001
+id: core-001
 title: Test
 status: ${status}
 ---
@@ -137,93 +123,213 @@ Body`
       expect(item?.status).toBe(status)
     }
   })
+
+  it('parses links list', () => {
+    const content = `---
+id: core-001
+title: Test
+links: [a, b, c]
+---
+Body`
+    const item = parseBacklogFile('test.md', content)
+    expect(item?.links).toEqual(['a', 'b', 'c'])
+  })
+
+  it('defaults links to empty array when missing', () => {
+    const content = `---
+id: core-001
+title: Test
+---
+Body`
+    const item = parseBacklogFile('test.md', content)
+    expect(item?.links).toEqual([])
+  })
+
+  describe('legacy thin-schema migration', () => {
+    it('maps legacy status todo -> ready', () => {
+      const content = `---
+id: BL-0001
+title: Test
+status: todo
+priority: 1
+---
+Body`
+      const item = parseBacklogFile('test.md', content)
+      expect(item?.status).toBe('ready')
+    })
+
+    it('maps legacy status doing -> in-progress', () => {
+      const content = `---
+id: BL-0001
+title: Test
+status: doing
+---
+Body`
+      const item = parseBacklogFile('test.md', content)
+      expect(item?.status).toBe('in-progress')
+    })
+
+    it('maps legacy status blocked -> ready', () => {
+      const content = `---
+id: BL-0001
+title: Test
+status: blocked
+---
+Body`
+      const item = parseBacklogFile('test.md', content)
+      expect(item?.status).toBe('ready')
+    })
+
+    it('keeps legacy status done as done', () => {
+      const content = `---
+id: BL-0001
+title: Test
+status: done
+---
+Body`
+      const item = parseBacklogFile('test.md', content)
+      expect(item?.status).toBe('done')
+    })
+
+    it('maps legacy numeric priority 1 -> p1', () => {
+      const content = `---
+id: BL-0001
+title: Test
+priority: 1
+---
+Body`
+      const item = parseBacklogFile('test.md', content)
+      expect(item?.priority).toBe('p1')
+    })
+
+    it('maps legacy numeric priority 2 -> p2', () => {
+      const content = `---
+id: BL-0001
+title: Test
+priority: 2
+---
+Body`
+      const item = parseBacklogFile('test.md', content)
+      expect(item?.priority).toBe('p2')
+    })
+
+    it('maps legacy numeric priority 3+ -> p3', () => {
+      const content = `---
+id: BL-0001
+title: Test
+priority: 4
+---
+Body`
+      const item = parseBacklogFile('test.md', content)
+      expect(item?.priority).toBe('p3')
+    })
+
+    it('old thin file with only id/title/status/priority/owner/created still parses', () => {
+      const content = `---
+id: BL-0001
+title: Legacy item
+status: todo
+priority: 2
+owner: bob
+created: 2026-08-22
+---
+Old body.`
+      const item = parseBacklogFile('test.md', content)
+      expect(item).toEqual({
+        id: 'BL-0001',
+        title: 'Legacy item',
+        type: 'idea',
+        status: 'ready',
+        priority: 'p2',
+        effort: '?',
+        risk: '?',
+        area: undefined,
+        sprint: undefined,
+        owner: 'bob',
+        created: '2026-08-22',
+        closed: undefined,
+        links: [],
+        file: 'test.md',
+        body: 'Old body.',
+      })
+    })
+  })
 })
 
 describe('renderBacklogItem', () => {
-  it('renders item with all fields', () => {
-    const item: BacklogItem = {
-      id: 'BL-0001',
-      title: 'Test task',
-      status: 'todo',
-      priority: 1,
-      owner: 'alice',
-      created: '2026-08-22',
-      file: 'test.md',
-      body: 'Task body.',
-    }
-    const md = renderBacklogItem(item)
-    expect(md).toContain('---')
-    expect(md).toContain('id: BL-0001')
-    expect(md).toContain('title: Test task')
-    expect(md).toContain('status: todo')
-    expect(md).toContain('priority: 1')
-    expect(md).toContain('owner: alice')
-    expect(md).toContain('created: 2026-08-22')
-    expect(md).toContain('Task body.')
+  it('renders item with all fields and round-trips', () => {
+    const md = renderBacklogItem(fullItem)
+    expect(md).toContain('id: core-001')
+    expect(md).toContain('type: feature')
+    expect(md).toContain('status: ready')
+    expect(md).toContain('priority: p1')
+    expect(md).toContain('effort: M')
+    expect(md).toContain('risk: low')
+    expect(md).toContain('area: core')
+    expect(md).toContain('sprint: 2026-01-A')
+    expect(md).toContain('links: [docs/notes.md, core-002]')
+
+    const reparsed = parseBacklogFile('test.md', md)
+    expect(reparsed).toEqual(fullItem)
   })
 
-  it('omits owner when undefined', () => {
-    const item: BacklogItem = {
-      id: 'BL-0001',
-      title: 'Test',
-      status: 'todo',
-      priority: 3,
-      owner: undefined,
-      created: '2026-08-22',
-      file: 'test.md',
-      body: 'Body',
-    }
-    const md = renderBacklogItem(item)
-    expect(md).not.toContain('owner:')
-  })
-
-  it('omits created when undefined', () => {
-    const item: BacklogItem = {
-      id: 'BL-0001',
-      title: 'Test',
-      status: 'todo',
-      priority: 3,
-      owner: 'alice',
-      created: undefined,
-      file: 'test.md',
-      body: 'Body',
-    }
-    const md = renderBacklogItem(item)
-    expect(md).not.toContain('created:')
-  })
-
-  it('round-trips through parseBacklogFile', () => {
-    const original: BacklogItem = {
-      id: 'BL-0005',
-      title: 'Round trip test',
-      status: 'doing',
-      priority: 2,
-      owner: 'bob',
-      created: '2026-08-22',
-      file: 'test.md',
-      body: 'Multi\nline\nbody',
-    }
-    const rendered = renderBacklogItem(original)
-    const reparsed = parseBacklogFile('test.md', rendered)
-
-    expect(reparsed).toEqual(original)
-  })
-
-  it('round-trips without owner and created', () => {
-    const original: BacklogItem = {
-      id: 'BL-0003',
+  it('round-trips without owner, area, sprint, closed, links', () => {
+    const minimal: BacklogItem = {
+      id: 'core-003',
       title: 'Minimal test',
-      status: 'blocked',
-      priority: 4,
+      type: 'idea',
+      status: 'idea',
+      priority: '?',
+      effort: '?',
+      risk: '?',
+      area: undefined,
+      sprint: undefined,
       owner: undefined,
       created: undefined,
+      closed: undefined,
+      links: [],
       file: 'test.md',
       body: 'Body',
     }
-    const rendered = renderBacklogItem(original)
+    const rendered = renderBacklogItem(minimal)
     const reparsed = parseBacklogFile('test.md', rendered)
+    expect(reparsed).toEqual(minimal)
+  })
+})
 
-    expect(reparsed).toEqual(original)
+describe('isOpen', () => {
+  it('done and dropped are closed, everything else open', () => {
+    expect(isOpen({ ...fullItem, status: 'idea' })).toBe(true)
+    expect(isOpen({ ...fullItem, status: 'ready' })).toBe(true)
+    expect(isOpen({ ...fullItem, status: 'in-progress' })).toBe(true)
+    expect(isOpen({ ...fullItem, status: 'done' })).toBe(false)
+    expect(isOpen({ ...fullItem, status: 'dropped' })).toBe(false)
+  })
+})
+
+describe('buildBacklogTable', () => {
+  it('lists only open items as a markdown table', () => {
+    const table = buildBacklogTable([
+      { ...fullItem, id: 'a-1', status: 'ready' },
+      { ...fullItem, id: 'a-2', status: 'done', closed: '2026-08-22' },
+    ])
+    expect(table).toContain('a-1')
+    expect(table).not.toContain('a-2')
+    expect(table).toContain('GENERATED')
+  })
+})
+
+describe('buildDoneLog', () => {
+  it('lists only closed items, newest first', () => {
+    const log = buildDoneLog([
+      { ...fullItem, id: 'a-1', status: 'ready' },
+      { ...fullItem, id: 'a-2', status: 'done', closed: '2026-08-20' },
+      { ...fullItem, id: 'a-3', status: 'dropped', closed: '2026-08-22' },
+    ])
+    expect(log).not.toContain('a-1')
+    expect(log).toContain('a-2')
+    expect(log).toContain('a-3')
+    expect(log.indexOf('a-3')).toBeLessThan(log.indexOf('a-2'))
   })
 })
 
@@ -245,17 +351,17 @@ describe('loadBacklog', () => {
 
   it('loads and parses .md files', async () => {
     const content = `---
-id: BL-0001
+id: core-001
 title: Test
-status: todo
-priority: 1
+status: ready
+priority: p1
 ---
 Body`
     await fs.writeFile(join(tempDir, 'item1.md'), content)
 
     const items = await loadBacklog(tempDir)
     expect(items).toHaveLength(1)
-    expect(items[0]?.id).toBe('BL-0001')
+    expect(items[0]?.id).toBe('core-001')
   })
 
   it('returns empty array for missing directory', async () => {
@@ -265,7 +371,7 @@ Body`
 
   it('skips non-.md files', async () => {
     const mdContent = `---
-id: BL-0001
+id: core-001
 title: Test
 ---
 Body`
@@ -274,12 +380,12 @@ Body`
 
     const items = await loadBacklog(tempDir)
     expect(items).toHaveLength(1)
-    expect(items[0]?.id).toBe('BL-0001')
+    expect(items[0]?.id).toBe('core-001')
   })
 
   it('skips unparseable .md files', async () => {
     const goodContent = `---
-id: BL-0001
+id: core-001
 title: Good
 ---
 Body`
@@ -293,15 +399,16 @@ Body`
 
     const items = await loadBacklog(tempDir)
     expect(items).toHaveLength(1)
-    expect(items[0]?.id).toBe('BL-0001')
+    expect(items[0]?.id).toBe('core-001')
   })
 
-  it('sorts by status order: doing, todo, blocked, done', async () => {
+  it('sorts by status order: in-progress, ready, idea, done, dropped', async () => {
     const files = [
       { name: 'done.md', status: 'done' },
-      { name: 'doing.md', status: 'doing' },
-      { name: 'blocked.md', status: 'blocked' },
-      { name: 'todo.md', status: 'todo' },
+      { name: 'dropped.md', status: 'dropped' },
+      { name: 'inprogress.md', status: 'in-progress' },
+      { name: 'idea.md', status: 'idea' },
+      { name: 'ready.md', status: 'ready' },
     ]
 
     for (const { name, status } of files) {
@@ -309,32 +416,28 @@ Body`
 id: ${name.replace('.md', '')}
 title: ${status}
 status: ${status}
-priority: 1
+priority: p1
 ---
 Body`
       await fs.writeFile(join(tempDir, name), content)
     }
 
     const items = await loadBacklog(tempDir)
-    expect(items).toHaveLength(4)
-    expect(items[0]?.status).toBe('doing')
-    expect(items[1]?.status).toBe('todo')
-    expect(items[2]?.status).toBe('blocked')
-    expect(items[3]?.status).toBe('done')
+    expect(items.map((i) => i.status)).toEqual(['in-progress', 'ready', 'idea', 'done', 'dropped'])
   })
 
   it('sorts by ascending priority within same status', async () => {
     const files = [
-      { name: 'p3.md', priority: 3 },
-      { name: 'p1.md', priority: 1 },
-      { name: 'p2.md', priority: 2 },
+      { name: 'p3.md', priority: 'p3' },
+      { name: 'p1.md', priority: 'p1' },
+      { name: 'p2.md', priority: 'p2' },
     ]
 
     for (const { name, priority } of files) {
       const content = `---
 id: ${name.replace('.md', '')}
 title: Item
-status: todo
+status: ready
 priority: ${priority}
 ---
 Body`
@@ -342,10 +445,7 @@ Body`
     }
 
     const items = await loadBacklog(tempDir)
-    expect(items).toHaveLength(3)
-    expect(items[0]?.priority).toBe(1)
-    expect(items[1]?.priority).toBe(2)
-    expect(items[2]?.priority).toBe(3)
+    expect(items.map((i) => i.priority)).toEqual(['p1', 'p2', 'p3'])
   })
 
   it('does not recurse into subdirectories', async () => {
@@ -353,12 +453,12 @@ Body`
     await fs.mkdir(subdir)
 
     const topContent = `---
-id: BL-0001
+id: core-001
 title: Top
 ---
 Body`
     const subContent = `---
-id: BL-0002
+id: core-002
 title: Sub
 ---
 Body`
@@ -368,6 +468,6 @@ Body`
 
     const items = await loadBacklog(tempDir)
     expect(items).toHaveLength(1)
-    expect(items[0]?.id).toBe('BL-0001')
+    expect(items[0]?.id).toBe('core-001')
   })
 })
