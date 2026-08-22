@@ -13,7 +13,9 @@ a functional-subset ESLint configuration, and a live observability dashboard (`n
 port 4747) that tails Claude Code session transcripts to show agents, models, token rates, the
 backlog (`backlog/`), and documents in real time. The [Documents](#documents) section indexes
 the design notes. The tools, skills, and multi-agent process are documented for humans in
-[Tools, Skills, and Process](docs/tools-and-process.md).
+[Tools, Skills, and Process](docs/tools-and-process.md). The backlog now follows the
+[WorkQuarry](https://github.com/ara3d/workquarry) issue-tracking schema, implemented natively
+in TypeScript — see the [adoption ADR](decisions/2026-08-22-adopt-workquarry-format.md).
 
 ## Motivation 
 
