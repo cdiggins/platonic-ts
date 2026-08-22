@@ -136,6 +136,7 @@ Early design notes. Everything here is a first draft, and nothing is implemented
 * [Git Worktrees and Branches for Concurrent Coding Agents](docs/worktrees-and-branches-for-agents-2026-08-22.md) — evaluates the no-worktrees stance; concludes shared tree by default, worktrees for spikes and background agents, with a decision rule and revisit conditions.
 * [TDD for Agent-Driven Development](docs/tdd-for-agents-2026-08-22.md) — the evidence on TDD by the book and in practice, what changes with agents, a comparison with Superpowers, and a testing policy proposal.
 * [Pure Functional Programming for Agent-Driven Development](docs/pure-fp-for-agents-2026-08-22.md) — the pros and cons of pure FP with agents; concludes for a pure functional subset of TypeScript, against pure FP languages and heavy monadic abstraction.
+* [Claude Code Integration](docs/claude-code-integration-2026-08-22.md) — which hooks, MCP tools, skills, and agents make sense, placed by one rule: checkable rules become hooks, questions become MCP tools, only the uncheckable residue becomes skills.
 
 ## History
 
