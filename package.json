@@ -10,7 +10,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "check": "tsx packages/check/src/main.ts",
-    "dashboard": "tsx packages/dashboard/src/main.ts"
+    "dashboard": "tsx packages/dashboard/src/main.ts",
+    "backlog:regen": "tsx packages/backlog/src/main.ts regen"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
