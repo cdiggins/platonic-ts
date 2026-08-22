@@ -144,6 +144,7 @@ Anecdotal, contested, or dependent on conditions not yet established. H12 and H1
 
 Early design notes. Everything here is a first draft, and nothing is implemented yet.
 
+* [Platonic TypeScript Style Guide](docs/style-guide.md) — the rules for writing the code, keyed `PS-nnn` and tiered by who enforces them: mechanical (a tool fails the build), mechanizable (candidate lint rules), and judgment (the uncheckable residue). Prose is a staging area — a rule that becomes lintable is deleted from the document. (Implemented — unlike the design notes below.)
 * [Tools, Skills, and Process](docs/tools-and-process.md) — human-facing guide to the check gate, the dashboard, the backlog, the Claude Code skills in use, and the fenced parallel-wave process. (Implemented — unlike the design notes below.)
 * [An Agent Development Framework for TypeScript](docs/agent-development-framework-2026-08-18.md) — where this could go: a restricted TypeScript subset, rules moved out of prompts and into tools, and a gate that runs continuously so feedback is fast and small.
 * [Off-the-Shelf Tooling Catalogue](docs/tooling-catalog.md) — candidate tools and libraries by job to be done, with overlaps flagged and a ten-item shortlist.

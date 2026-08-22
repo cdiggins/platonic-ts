@@ -1,6 +1,7 @@
 # Agent orientation — platonic-ts
 
-Read in this order: this file, `CONTRACTS.md` (fences + seams), `NOTES.md` (findings — append yours).
+Read in this order: this file, `CONTRACTS.md` (fences + seams), `docs/style-guide.md` (how to
+write the code — rule IDs `PS-nnn`), `NOTES.md` (findings — append yours).
 
 ## Run + verify (before AND after changing anything)
 
@@ -27,3 +28,4 @@ npm run dashboard   # observability server on http://localhost:4747
 Commit to `main` with pathspec (`git commit -- <paths>`); push only after a verified
 milestone (`git pull --rebase` first — parallel agents collide). No branches, no worktrees.
 Pure functional style, zero runtime deps, relative imports across packages.
+Full rules in [docs/style-guide.md](docs/style-guide.md); breaking one requires PS-056.
