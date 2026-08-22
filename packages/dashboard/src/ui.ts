@@ -36,7 +36,7 @@ const clientScript = `
     return n + ' B';
   }
 
-  var STATUS_ORDER = ['in-progress', 'ready', 'idea', 'done', 'dropped'];
+  var STATUS_ORDER = ['in-progress', 'ready', 'done', 'dropped'];
 
   function initDocsToggle() {
     var toggle = document.getElementById('docs-toggle');
@@ -132,6 +132,31 @@ const clientScript = `
       table.appendChild(tbody);
       group.appendChild(table);
       backlogEl.appendChild(group);
+    });
+
+    var ideasEl = document.getElementById('ideas');
+    ideasEl.innerHTML = '';
+    var ideas = snapshot.backlog.filter(function (b) { return b.status === 'idea'; });
+    if (ideas.length === 0) {
+      ideasEl.innerHTML = '<div class="empty">no ideas</div>';
+    }
+    ideas.forEach(function (item) {
+      var card = document.createElement('details');
+      card.className = 'idea-card';
+      var summary = document.createElement('summary');
+      summary.innerHTML =
+        '<span class="idea-id">' + escapeHtml(item.id) + '</span>' +
+        '<span class="idea-title">' + escapeHtml(item.title) + '</span>' +
+        (item.area ? '<span class="badge">' + escapeHtml(item.area) + '</span>' : '');
+      card.appendChild(summary);
+      var body = document.createElement('div');
+      body.className = 'idea-body';
+      var fileLink = 'vscode://file/' + encodeURIComponent(item.file);
+      body.innerHTML =
+        '<div class="idea-meta"><a href="' + escapeHtml(fileLink) + '" style="color: #8ab4f8; text-decoration: none;">' + escapeHtml(item.file) + '</a></div>' +
+        '<pre class="idea-text">' + escapeHtml(item.body) + '</pre>';
+      card.appendChild(body);
+      ideasEl.appendChild(card);
     });
 
     var docsBody = document.querySelector('#docs-table tbody');
@@ -243,6 +268,33 @@ export const renderPage = (): string => `<!doctype html>
   #docs-explanation p { margin: 6px 0; font-size: 12px; line-height: 1.5; color: #c9d1d9; }
   #docs-explanation ul { margin: 6px 0; padding-left: 20px; font-size: 12px; color: #c9d1d9; }
   #docs-explanation li { margin: 4px 0; line-height: 1.5; }
+  .idea-card {
+    background: #161b22;
+    border: 1px solid #263043;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+  }
+  .idea-card summary {
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .idea-card summary::-webkit-details-marker { color: #6b7793; }
+  .idea-id { color: #6b7793; font-size: 11px; }
+  .idea-title { color: #d8dee9; font-weight: 600; }
+  .idea-body { margin-top: 10px; }
+  .idea-meta { font-size: 11px; margin-bottom: 6px; }
+  .idea-text {
+    white-space: pre-wrap;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #c9d1d9;
+    margin: 0;
+  }
 </style>
 </head>
 <body>
@@ -269,8 +321,10 @@ export const renderPage = (): string => `<!doctype html>
       <li><strong>cache create</strong> — tokens written to cache</li>
     </ul>
     <p>Table breaks down usage by model for cost tracking.</p>
+    <h3>Ideas</h3>
+    <p>Backlog items with status "idea" — captured but untriaged. Click a card to expand its full elaboration (assumptions, design decisions, approach). Click the file link to open in VSCode.</p>
     <h3>Backlog</h3>
-    <p>Work items grouped by status (in-progress/ready/idea/done/dropped), WorkQuarry schema. Priority p1 (highest) – p3, plus type and effort. Click file links to open in VSCode.</p>
+    <p>Work items grouped by status (in-progress/ready/done/dropped), WorkQuarry schema. Priority p1 (highest) – p3, plus type and effort. Click file links to open in VSCode.</p>
     <h3>Docs</h3>
     <p>Project documentation indexed by title and modification time. Monitor docs you care about without leaving the dashboard.</p>
   </div>
@@ -294,6 +348,11 @@ export const renderPage = (): string => `<!doctype html>
       </thead>
       <tbody></tbody>
     </table>
+  </section>
+
+  <section>
+    <h2>Ideas</h2>
+    <div id="ideas"></div>
   </section>
 
   <section>
