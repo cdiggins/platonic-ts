@@ -113,6 +113,8 @@ Early design notes. Everything here is a first draft, and nothing is implemented
 
 * [An Agent Development Framework for TypeScript](docs/agent-development-framework-2026-08-18.md) — where this could go: a restricted TypeScript subset, rules moved out of prompts and into tools, and a gate that runs continuously so feedback is fast and small.
 * [Off-the-Shelf Tooling Catalogue](docs/tooling-catalog.md) — candidate tools and libraries by job to be done, with overlaps flagged and a ten-item shortlist.
+* [Deliverable Ideas](docs/deliverable-ideas-2026-08-22.md) — candidate deliverables grouped by build/adopt/package/link, converging on a recommendation.
+* [Project Anatomy](docs/project-anatomy-2026-08-22.md) — the parts of a TypeScript project broken down finely, and the axes (truth/derived, checked/unchecked, durable/ephemeral, interface/interior) that determine how each part is maintained.
 
 ## History
 
