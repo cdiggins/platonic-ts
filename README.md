@@ -107,6 +107,13 @@ Prioritization - Making sure agents prioritize tasks and work appropriately
 Goal alignment - between the human sponsor and the agents
 Observability - making it obvious to a human (as well as supervising agent) the status of work, things that are working well. 
 
+## Documents
+
+Early design notes. Everything here is a first draft, and nothing is implemented yet.
+
+* [An Agent Development Framework for TypeScript](docs/agent-development-framework-2026-08-18.md) — where this could go: a restricted TypeScript subset, rules moved out of prompts and into tools, and a gate that runs continuously so feedback is fast and small.
+* [Off-the-Shelf Tooling Catalogue](docs/tooling-catalog.md) — candidate tools and libraries by job to be done, with overlaps flagged and a ten-item shortlist.
+
 ## History
 
 This project was started on August 22nd, 2026 by Christopher Diggins, released under the MIT License. 
