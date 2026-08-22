@@ -9,9 +9,12 @@ Built for one person working with coding agents — Claude Code first, other age
 Early prototype. Started August 22nd, 2026. Implemented so far: an npm-workspaces
 monorepo (`packages/core`, `transcripts`, `backlog`, `dashboard`, `check`) built by parallel
 fenced agent waves (process in [CONTRACTS.md](CONTRACTS.md), findings in [NOTES.md](NOTES.md)),
-a functional-subset ESLint configuration, and a live observability dashboard (`npm run dashboard`,
-port 4747) that tails Claude Code session transcripts to show agents, models, token rates, the
-backlog (`backlog/`), and documents in real time. The [Documents](#documents) section indexes
+a functional-subset ESLint configuration, and a live agent-observability dashboard
+(`npm run dashboard`, port 4747) that tails Claude Code session transcripts to show agents,
+models, token rates, the backlog (`backlog/`), and documents in real time. The dashboard covers
+agent activity and logged work only; browsing and scoring the source code is a separate tool's
+job, and the boundary is explained in
+[Tools, Skills, and Process](docs/tools-and-process.md#scope-what-the-dashboard-is-not). The [Documents](#documents) section indexes
 the design notes. The tools, skills, and multi-agent process are documented for humans in
 [Tools, Skills, and Process](docs/tools-and-process.md). The backlog now follows the
 [WorkQuarry](https://github.com/ara3d/workquarry) issue-tracking schema, implemented natively

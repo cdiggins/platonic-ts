@@ -30,23 +30,73 @@ implementation lives in `packages/check` — a pure per-file scanner (`countEsca
 TypeScript AST walk) plus a thin CLI. The scanner works on any TypeScript file, not just this
 repo; it was pointed unmodified at a foreign codebase during the first Gratify probe.
 
-### `npm run dashboard` — observability
+### `npm run dashboard` — agent observability
 
-Starts a local server on <http://localhost:4747> that tails Claude Code session transcripts
-(the JSONL files Claude Code writes for every session, including subagent transcripts) and
-shows, live via server-sent events:
+Starts a local server on <http://localhost:4747>. The question it answers is what the coding
+agents working on this repository have done and are doing: which agents ran, on which models,
+at what token cost, and what work and ideas they have logged.
 
-- every agent seen in the transcripts, with its most recent model, tool, and activity snippet;
-- token usage totals and output-tokens-per-minute;
-- the backlog (from `backlog/`) and the design documents (from `docs/`).
+`PORT` overrides the port. Stop it with Ctrl-C; there is no daemon and no state to clean up.
 
-It is passive: it reads transcripts Claude Code writes anyway, so it needs no hooks or
-instrumentation in the agents themselves. This is how weak-model delegation is verified — a
-track handed to Haiku shows up on the dashboard as a Haiku row with its own token count.
+#### What each panel shows
 
-Implementation: `packages/transcripts` (parsing, tailing, aggregation),
-`packages/dashboard` (HTTP + SSE server, single-page UI), composed in
-`packages/dashboard/src/main.ts`.
+- **Agents** — one row per session transcript, subagent transcripts included and marked
+  `sidechain`. Each row carries the model of the last assistant message, the most recent tool
+  call, a snippet of the latest output, cumulative input and output tokens, and the age of the
+  last line in that transcript. The dot is green when the session has been active recently.
+- **Usage** — input, output, cache-read and cache-creation token totals across every watched
+  transcript, then the same totals broken down by model. The output-tokens-per-minute figure
+  in the header is a rate over a five-minute sliding window, not an all-time average.
+- **Ideas** — backlog items with status `idea`, expandable to the full elaboration in the file.
+- **Backlog** — the remaining items grouped by status, with priority, type, and effort.
+- **Docs** — the markdown files in `docs/`, newest first, with title, mtime, and size.
+
+File paths in the Ideas and Docs panels are `vscode://file/` links, so a click opens the file
+in the editor.
+
+#### Where the data comes from
+
+Agents and Usage come from the JSONL session transcripts Claude Code writes for every session
+under `~/.claude/projects/<project-dir>`, plus the per-session subagent directories
+(`<session-id>/subagents/agent-*.jsonl`) and the task output directories under the temp root.
+`PLATONIC_TRANSCRIPT_DIRS` (semicolon-separated) adds more directories to watch. Ideas and
+Backlog come from `backlog/`; Docs comes from `docs/`.
+
+The dashboard is passive: it reads files Claude Code writes anyway, so it needs no hooks and
+no instrumentation in the agents themselves. This is how weak-model delegation is verified — a
+track handed to Haiku shows up as a Haiku row with its own token count.
+
+#### How it refreshes
+
+The page opens one server-sent-events connection to `/api/events`. Every two seconds the
+server reads whatever has been appended to the transcripts since the last tick, reloads the
+backlog and docs, and pushes a complete `DashboardSnapshot`; the page replaces its contents
+with each snapshot it receives. Nothing is persisted between ticks — the aggregates are held
+in the server process and rebuilt from the transcripts on restart. The same snapshot is
+available as a one-shot JSON response at `/api/state`.
+
+#### Scope: what the dashboard is not
+
+The dashboard is not a code browser. It does not navigate TypeScript source, resolve symbols,
+compute code metrics, or score code quality or conformance. Those belong to a separate
+application, not here — the two have different data sources (session transcripts and work
+items versus the TypeScript AST) and different refresh models (live tail versus on-demand
+analysis), and merging them would leave neither with a clear purpose. BL-0011 (purity,
+complexity, and quality scoring) is written against `packages/check`, and any surface it
+eventually needs belongs to that separate tool.
+
+#### Architecture
+
+`packages/transcripts` does the parsing, tailing, and aggregation; `packages/dashboard` is the
+HTTP + SSE server (`src/server.ts`) and the single-page UI (`src/ui.ts`), with the two composed
+in `src/main.ts`. There are no runtime dependencies: the server is `node:http`, and the page is
+one HTML string with its CSS and JS inline, so it makes no external requests.
+
+`server.ts` takes an injected `SnapshotProvider` (`() => Promise<DashboardSnapshot>`) and never
+touches the filesystem itself. That is what makes the server testable — `test/server.test.ts`
+drives the routes on an ephemeral port with a fixture provider — and it is where a different
+data source would be substituted. All filesystem access lives in `main.ts`, which is
+supervisor-owned (see [CONTRACTS.md](../CONTRACTS.md)).
 
 ### The backlog
 

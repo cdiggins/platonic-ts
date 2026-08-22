@@ -260,7 +260,7 @@ export const renderPage = (): string => `<!doctype html>
     margin-bottom: 16px;
   }
   #docs-explanation.open {
-    max-height: 500px;
+    max-height: 2000px;
     padding: 12px;
   }
   #docs-explanation h3 { font-size: 12px; color: #8ab4f8; text-transform: uppercase; margin: 12px 0 6px; }
@@ -268,6 +268,7 @@ export const renderPage = (): string => `<!doctype html>
   #docs-explanation p { margin: 6px 0; font-size: 12px; line-height: 1.5; color: #c9d1d9; }
   #docs-explanation ul { margin: 6px 0; padding-left: 20px; font-size: 12px; color: #c9d1d9; }
   #docs-explanation li { margin: 4px 0; line-height: 1.5; }
+  #docs-explanation code { color: #7ee787; background: #0b0e14; padding: 0 3px; border-radius: 3px; }
   .idea-card {
     background: #161b22;
     border: 1px solid #263043;
@@ -310,23 +311,35 @@ export const renderPage = (): string => `<!doctype html>
 
   <button id="docs-toggle">+ How the dashboard works</button>
   <div id="docs-explanation">
+    <h3>Purpose</h3>
+    <p>This page shows what the coding agents working on this repository have done and are doing — which agents ran, on which models, at what token cost — alongside the work and ideas they have logged.</p>
     <h3>Agents</h3>
-    <p>Real-time activity of running agents. Shows model, most recent tool, output snippet, and token usage. Green dot = active, gray = inactive.</p>
+    <p>One row per session transcript, including subagents (marked <span class="badge">sidechain</span>). Shows the model of the last assistant message, the most recent tool call, a snippet of the latest output, cumulative input/output tokens, and how long ago the transcript last changed. A green dot means the session was active recently, gray means it was not.</p>
     <h3>Usage</h3>
-    <p>Cumulative token metrics across all models and messages:</p>
+    <p>Token totals across every transcript being watched:</p>
     <ul>
       <li><strong>in</strong> — input tokens (prompt/context)</li>
       <li><strong>out</strong> — output tokens (completions)</li>
       <li><strong>cache read</strong> — tokens read from prompt cache</li>
       <li><strong>cache create</strong> — tokens written to cache</li>
     </ul>
-    <p>Table breaks down usage by model for cost tracking.</p>
+    <p>The table breaks the same totals down by model. The output-tokens-per-minute figure in the header is a rate over the last five minutes, not an all-time average.</p>
     <h3>Ideas</h3>
-    <p>Backlog items with status "idea" — captured but untriaged. Click a card to expand its full elaboration (assumptions, design decisions, approach). Click the file link to open in VSCode.</p>
+    <p>Backlog items with status "idea" — captured but untriaged. Click a card to expand its full elaboration (assumptions, design decisions, approach). Click the file link to open it in VSCode.</p>
     <h3>Backlog</h3>
-    <p>Work items grouped by status (in-progress/ready/done/dropped), WorkQuarry schema. Priority p1 (highest) – p3, plus type and effort. Click file links to open in VSCode.</p>
+    <p>Work items grouped by status (in-progress/ready/done/dropped), WorkQuarry schema. Priority p1 (highest) to p3, plus type and effort.</p>
     <h3>Docs</h3>
-    <p>Project documentation indexed by title and modification time. Monitor docs you care about without leaving the dashboard.</p>
+    <p>The design notes in the repository, listed by title, last modification, and size, newest first. Click a file link to open it in VSCode.</p>
+    <h3>Where the data comes from</h3>
+    <ul>
+      <li><strong>Agents, Usage</strong> — the JSONL session transcripts Claude Code writes for every session, under <code>~/.claude/projects/</code>, plus the per-session subagent and task transcript directories. Nothing is instrumented in the agents themselves; the dashboard only reads files that already exist.</li>
+      <li><strong>Ideas, Backlog</strong> — the markdown files in <code>backlog/</code>.</li>
+      <li><strong>Docs</strong> — the markdown files in <code>docs/</code>.</li>
+    </ul>
+    <h3>How it refreshes</h3>
+    <p>The page holds one server-sent-events connection to <code>/api/events</code>. Every two seconds the server re-reads whatever has been appended to the transcripts, reloads the backlog and docs, and pushes a complete snapshot, which replaces what is on screen. Nothing is stored between ticks. The same snapshot is available as JSON at <code>/api/state</code>.</p>
+    <h3>What this dashboard is not</h3>
+    <p>It is not a code browser. It does not navigate TypeScript source, look up symbols, compute code metrics, or score code quality. That job belongs to a separate tool; adding it here would blur what this page is for. Everything shown here is agent activity and logged work.</p>
   </div>
 
   <section>
