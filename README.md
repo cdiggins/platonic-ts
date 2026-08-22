@@ -4,7 +4,13 @@ An opinionated approach to writing [TypeScript](https://www.typescriptlang.org/)
 
 Built for one person working with coding agents — Claude Code first, other agents where practical — in a single repository, iterating fast. Generalizing to multiple repositories is a later ambition; team workflows are out of scope.
 
-**Status:** design phase. Started August 22nd, 2026; nothing is implemented yet. The [Documents](#documents) section indexes the design notes.
+**Status:** early prototype. Started August 22nd, 2026. Implemented so far: an npm-workspaces
+monorepo (`packages/core`, `transcripts`, `backlog`, `dashboard`, `check`) built by parallel
+fenced agent waves (process in [CONTRACTS.md](CONTRACTS.md), findings in [NOTES.md](NOTES.md)),
+a functional-subset ESLint configuration, and a live observability dashboard (`npm run dashboard`,
+port 4747) that tails Claude Code session transcripts to show agents, models, token rates, the
+backlog (`backlog/`), and documents in real time. The [Documents](#documents) section indexes
+the design notes.
 
 ## Motivation 
 
