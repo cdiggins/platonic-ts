@@ -45,7 +45,7 @@ Well supported by evidence, mechanics, or broad experience.
 
 ### Weak hypotheses
 
-Anecdotal, contested, or dependent on conditions not yet established.
+Anecdotal, contested, or dependent on conditions not yet established. H12 and H14–H19 are examined against the published record in [Evidence for the Unexplored Weak Hypotheses](docs/weak-hypotheses-evidence-2026-08-22.md).
 
 * H12. When code is pure functional, tests don't have to be rerun each time (purity alone is not enough — this needs content-addressed caching of results, which Unison demonstrates is feasible)
 * H13. TDD is too strict of a framework in some cases (examined in [TDD for Agent-Driven Development](docs/tdd-for-agents-2026-08-22.md))
@@ -135,6 +135,7 @@ Early design notes. Everything here is a first draft, and nothing is implemented
 * [Project Anatomy](docs/project-anatomy-2026-08-22.md) — the parts of a TypeScript project broken down finely, and the axes (truth/derived, checked/unchecked, durable/ephemeral, interface/interior) that determine how each part is maintained.
 * [Git Worktrees and Branches for Concurrent Coding Agents](docs/worktrees-and-branches-for-agents-2026-08-22.md) — evaluates the no-worktrees stance; concludes shared tree by default, worktrees for spikes and background agents, with a decision rule and revisit conditions.
 * [TDD for Agent-Driven Development](docs/tdd-for-agents-2026-08-22.md) — the evidence on TDD by the book and in practice, what changes with agents, a comparison with Superpowers, and a testing policy proposal.
+* [Evidence for the Unexplored Weak Hypotheses](docs/weak-hypotheses-evidence-2026-08-22.md) — the published record for and against H12 and H14–H19, with a verdict and design implication for each.
 * [Pure Functional Programming for Agent-Driven Development](docs/pure-fp-for-agents-2026-08-22.md) — the pros and cons of pure FP with agents; concludes for a pure functional subset of TypeScript, against pure FP languages and heavy monadic abstraction.
 * [Claude Code Integration](docs/claude-code-integration-2026-08-22.md) — which hooks, MCP tools, skills, and agents make sense, placed by one rule: checkable rules become hooks, questions become MCP tools, only the uncheckable residue becomes skills.
 
