@@ -4,7 +4,9 @@ An opinionated approach to writing [TypeScript](https://www.typescriptlang.org/)
 
 Built for one person working with coding agents — Claude Code first, other agents where practical — in a single repository, iterating fast. Generalizing to multiple repositories is a later ambition; team workflows are out of scope.
 
-**Status:** early prototype. Started August 22nd, 2026. Implemented so far: an npm-workspaces
+## Status
+
+Early prototype. Started August 22nd, 2026. Implemented so far: an npm-workspaces
 monorepo (`packages/core`, `transcripts`, `backlog`, `dashboard`, `check`) built by parallel
 fenced agent waves (process in [CONTRACTS.md](CONTRACTS.md), findings in [NOTES.md](NOTES.md)),
 a functional-subset ESLint configuration, and a live observability dashboard (`npm run dashboard`,
@@ -16,12 +18,12 @@ the design notes. The tools, skills, and multi-agent process are documented for 
 ## Motivation 
 
 The goal of this project is to use coding agents (e.g. Claude Code, Cursor) to:
-1. finish work faster
-2. consume fewer tokens
 
-Both are measured per completed unit of work — tokens per task and wall-clock time per task, at a fixed quality bar. Burn rate alone is meaningless: more work in flight always burns faster.
+1. finish coding tasks faster - with higher confidence of the quality
+2. consume the same or fewer tokens for comparable quality work output 
 
 A number of sub-goals fall from this:
+
 * increase agentic accuracy (correct on the first attempt, without rework)
 * rely more on automated tools, less on agents
 * make it easier for multiple agents to work together
@@ -96,24 +98,25 @@ Anecdotal, contested, or dependent on conditions not yet established. H12 and H1
   
 ## Principles 
 
-0. Correctness - proofs and static analysis trumps tests
+1. Correctness - proofs and static analysis trumps tests
 1. Reusable - without having to change internals 
-2. Robust - impossible, or at least, hard to use incorrectly. 
-3. Fail fast - detect and report problems at the earliest point, as close to the cause as possible
-4. Clarity - of intent, for programmers familiar with language. 
-5. Brevity - without sacrificing clarity 
+1. Robust - impossible, or at least, hard to use incorrectly. 
+1. Fail fast - detect and report problems at the earliest point, as close to the cause as possible
+1. Clarity - of intent, for programmers familiar with language. 
+1. Brevity - without sacrificing clarity 
 
 ## Coding Best Practices
 
-0. DRY - Don't repeat yourself
-0. KISS - Keep it super simple
-0. TSTTCPW - Consider "The simplest thing that could possibly work"
-0. Write code (functions/types/libraries) so that it can be easily adapted and reused in other contexts - with minimal change
-0. Expressions over procedures
-0. Data transformation 
-0. Functions signature, type declarations, and interfaces - require more clarity and care than implementations. 
-0. Conservative in what it produces, liberal in what it accepts (Postel's law)
-0. Don't test what is already known or proven.
+- DRY - Don't repeat yourself
+- KISS - Keep it super simple
+- Always first consider "The simplest thing that could possibly work" and accept and reject
+- Document what options were considered and chosen 
+- Write code (functions/types/libraries) so that it can be easily adapted and reused in other contexts - with minimal change
+- Expressions over procedures
+- Data transformation 
+- Functions signature, type declarations, and interfaces - require more clarity and care than implementations. 
+- Conservative in what it produces, liberal in what it accepts (Postel's law)
+- Don't test what is already known or proven.
 
 ## Challenges
 
