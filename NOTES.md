@@ -45,3 +45,40 @@ Gate results (this fence): `npm run typecheck` — clean, no errors. `npx vitest
 packages/dashboard` — 6/6 passed. Full `npm run check` — typecheck clean; vitest 49/50 passed,
 1 failure in `packages/transcripts/test/transcripts.test.ts` (`pollTranscripts` tail/shrink
 case, Track A, outside this fence) — not touched, not caused by dashboard changes.
+
+### Track A — transcripts seam
+
+Files: `packages/transcripts/src/index.ts`, `packages/transcripts/test/transcripts.test.ts`,
+`packages/transcripts/test/fixtures/sample.jsonl`.
+
+Exports match seam exactly: `parseTranscriptLine`, `discoverTranscriptFiles`, `TailState`,
+`createTailState`, `pollTranscripts`, `computeStatuses`, `summarizeUsage`. No contract
+friction, no dependency requests — node:fs/promises + node:path only.
+
+Real transcript format surprise (checked live files under
+`C:\Users\cdigg\.claude\projects\C--Users-cdigg-git-platonic-ts\`): far more line `type`s than
+the seam sketch implied — `queue-operation`, `attachment`, `custom-title`, `bridge-session`,
+`last-prompt`, `system`, `summary`, etc. All of these fall through to `kind: 'other'` (or
+`undefined` if no parseable `timestamp`), which the seam already covers, so no design change
+needed — just more real-world noise than doc examples showed. Assistant `message.content`
+blocks include a `thinking` type alongside `text`/`tool_use` (thinking blocks contribute
+neither snippet nor toolName, correctly ignored by "first block of type X" lookup). User
+`message.content` can be a bare string, an array of `tool_result` blocks, or an array of
+`text` blocks (a plain follow-up turn) — all three are exercised in the fixture. `usage`
+object on assistant lines carries many more fields than the four the contract needs
+(`service_tier`, `iterations`, `cache_creation.ephemeral_*`, etc.) — ignored, only the four
+named fields read, defaulting to 0 when absent.
+
+Design choices where the seam was silent: `computeStatuses` picks `lastModel`/`lastTool`/
+`lastSnippet`/`sessionId` by scanning backward per-file for the most recent activity that
+actually carries that field (not just the literal last activity, which is often a tool_result
+or other-kind line with everything undefined) — otherwise a status card would blank out after
+every tool call. `summarizeUsage` totals are all-time sums over the full activity list (not
+window-filtered); only `outputTokensPerMinute` uses `windowMs`, via the core helper, matching
+"pure aggregations over the full accumulated activity list" in CONTRACTS.md. Tail state is a
+`ReadonlyMap<file, {offset, remainder}>` rebuilt fresh from `discoverTranscriptFiles` each
+poll (files that vanish are silently dropped from state, not retained speculatively).
+
+Gate results (this fence): `npm run typecheck` — clean. `npx vitest run packages/transcripts`
+— 15/15 passed. Full `npm run check` — typecheck clean, vitest 50/50 passed (all four package
+test files, including dashboard and backlog).
