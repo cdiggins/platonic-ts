@@ -10,7 +10,8 @@ fenced agent waves (process in [CONTRACTS.md](CONTRACTS.md), findings in [NOTES.
 a functional-subset ESLint configuration, and a live observability dashboard (`npm run dashboard`,
 port 4747) that tails Claude Code session transcripts to show agents, models, token rates, the
 backlog (`backlog/`), and documents in real time. The [Documents](#documents) section indexes
-the design notes.
+the design notes. The tools, skills, and multi-agent process are documented for humans in
+[Tools, Skills, and Process](docs/tools-and-process.md).
 
 ## Motivation 
 
@@ -135,6 +136,7 @@ Anecdotal, contested, or dependent on conditions not yet established. H12 and H1
 
 Early design notes. Everything here is a first draft, and nothing is implemented yet.
 
+* [Tools, Skills, and Process](docs/tools-and-process.md) — human-facing guide to the check gate, the dashboard, the backlog, the Claude Code skills in use, and the fenced parallel-wave process. (Implemented — unlike the design notes below.)
 * [An Agent Development Framework for TypeScript](docs/agent-development-framework-2026-08-18.md) — where this could go: a restricted TypeScript subset, rules moved out of prompts and into tools, and a gate that runs continuously so feedback is fast and small.
 * [Off-the-Shelf Tooling Catalogue](docs/tooling-catalog.md) — candidate tools and libraries by job to be done, with overlaps flagged and a ten-item shortlist.
 * [Deliverable Ideas](docs/deliverable-ideas-2026-08-22.md) — candidate deliverables grouped by build/adopt/package/link, converging on a recommendation.
