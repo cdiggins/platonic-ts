@@ -204,3 +204,10 @@ packages/check` — 16/16 passed (11 ratchet.test.ts + 5 baseline.test.ts).
 - Contract friction (Track D): purity-ban exemption is filename-based (main/server/io.ts);
   run.ts fell outside and used process.hrtime.bigint() instead of Date.now(). Filename
   convention as policy works but is blunt — consider explicit io/ directories later.
+
+### Supervisor — Gratify first probe
+
+- countEscapeHatches worked unmodified on a foreign repo (31 files) — per-file purity of the
+  scanner paid off; only the packages/*-shaped scanRepo wrapper is platonic-ts-specific.
+- Gratify: tsc clean under its own config, 322 error lines under platonic strict flags.
+  Confirms the ratchet thesis: retrofit needs baseline-and-tighten, not fix-everything-first.
