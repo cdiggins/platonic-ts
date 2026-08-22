@@ -11,3 +11,4 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0004](BL-0004-hooks-events.md) | Claude Code hooks emit events | feature | p3 | M | med | dashboard | ready |  |
 | [BL-0008](BL-0008-usage-scoping.md) | Scope usage view to selectable time range | feature | p3 | S | low | dashboard | ready |  |
 | [BL-0009](BL-0009-ratchet-fixture-noise.md) | Ratchet regex counts pollute baseline via test fixtures | bug | p3 | S | low | check | ready |  |
+| [BL-0010](BL-0010-init-retrofitter.md) | Build platonic init retrofitter for existing repos | idea | ? | ? | ? | repo | idea |  |
