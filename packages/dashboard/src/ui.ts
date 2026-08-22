@@ -122,8 +122,9 @@ const clientScript = `
     }
     snapshot.docs.forEach(function (d) {
       var tr = document.createElement('tr');
+      var fileLink = 'vscode://file/' + encodeURIComponent(d.file);
       tr.innerHTML =
-        '<td>' + escapeHtml(d.file) + '</td>' +
+        '<td><a href="' + escapeHtml(fileLink) + '" style="color: #8ab4f8; text-decoration: none;">' + escapeHtml(d.file) + '</a></td>' +
         '<td>' + escapeHtml(d.title) + '</td>' +
         '<td>' + relativeTime(d.modifiedAt, now) + '</td>' +
         '<td>' + formatBytes(d.sizeBytes) + '</td>';
