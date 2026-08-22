@@ -1,7 +1,7 @@
----
+﻿---
 id: BL-0003
 title: ESLint functional-subset config
-status: todo
+status: done
 priority: 2
 created: 2026-08-22
 ---

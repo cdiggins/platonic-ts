@@ -1,7 +1,7 @@
----
+﻿---
 id: BL-0002
 title: Escape-hatch ratchet
-status: todo
+status: done
 priority: 2
 created: 2026-08-22
 ---

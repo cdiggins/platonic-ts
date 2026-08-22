@@ -1,7 +1,7 @@
 // Composition root: wires transcripts + backlog + docs into the dashboard server.
 // Supervisor-owned. Run with: npm run dashboard
 import { readdir, stat, readFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join, resolve, basename } from 'node:path'
 import type { AgentActivity, DashboardSnapshot, DocInfo } from '../../core/src/index.ts'
 import {
@@ -9,6 +9,7 @@ import {
   pollTranscripts,
   computeStatuses,
   summarizeUsage,
+  discoverSessionTaskDirs,
 } from '../../transcripts/src/index.ts'
 import { loadBacklog } from '../../backlog/src/index.ts'
 import { startDashboard } from './server.ts'
@@ -53,8 +54,31 @@ const main = async (): Promise<void> => {
   let tail = createTailState()
   let activities: AgentActivity[] = []
 
+  const taskTempRoot = join(tmpdir(), 'claude', 'C--Users-cdigg-git-platonic-ts')
+
+  // Subagent transcripts live at <projectTranscriptDir>\<session-id>\subagents\agent-*.jsonl
+  const subagentDirs = async (): Promise<readonly string[]> => {
+    const found = await Promise.all(
+      dirs.map(async (dir) => {
+        const entries = await readdir(dir, { withFileTypes: true }).catch(() => [])
+        const candidates = entries
+          .filter((e) => e.isDirectory())
+          .map((e) => join(dir, e.name, 'subagents'))
+        const existing = await Promise.all(
+          candidates.map(async (c) =>
+            (await readdir(c).catch(() => undefined)) === undefined ? undefined : c,
+          ),
+        )
+        return existing.filter((c): c is string => c !== undefined)
+      }),
+    )
+    return found.flat()
+  }
+
   const provider = async (): Promise<DashboardSnapshot> => {
-    const polled = await pollTranscripts(dirs, tail)
+    const taskDirs = await discoverSessionTaskDirs(taskTempRoot)
+    const agentDirs = await subagentDirs()
+    const polled = await pollTranscripts([...dirs, ...taskDirs, ...agentDirs], tail)
     tail = polled.state
     activities = [...activities, ...polled.activities].slice(-maxActivities)
     const now = Date.now()

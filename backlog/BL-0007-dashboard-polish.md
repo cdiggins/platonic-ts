@@ -1,7 +1,7 @@
----
+﻿---
 id: BL-0007
 title: Dashboard polish - subagent transcripts, readable labels, session scoping
-status: todo
+status: done
 priority: 2
 created: 2026-08-22
 ---

@@ -189,3 +189,18 @@ the same wall in a non-exempt file.
 Gate results (this fence, fence-scoped as instructed — not full `npx eslint .`): `npm run
 typecheck` — clean. `npx eslint packages/check` — clean, zero warnings/errors. `npx vitest run
 packages/check` — 16/16 passed (11 ratchet.test.ts + 5 baseline.test.ts).
+
+### Supervisor — wave 2 integration
+
+- `platonic check` live: `npm run check` = typecheck -> lint -> ratchet -> tests, ~22s total,
+  one-line-per-step verdict. Baseline initialized: any 0, as 7, nonNull 23, tsDirectives 4,
+  eslintDisables 7 (last two inflated by ratchet's own test fixtures — BL-0009).
+- Temp `tasks\*.output` files are ALWAYS 0 bytes — dead end for subagent observation. Real
+  subagent transcripts: `<projectTranscriptDir>\<session-id>\subagents\agent-*.jsonl`.
+  Wired in main.ts; dashboard now shows 17 agents (8 sidechains) with model + tokens each —
+  weak-model delegation is directly visible (Track B row shows haiku, 8.3k out).
+- Wave 2 token cost (subagent output): Track D 94.6k (sonnet), Track E 115.9k (sonnet).
+  Wave 2 heavier than wave 1 per track — lint refactoring under immutable-data is expensive.
+- Contract friction (Track D): purity-ban exemption is filename-based (main/server/io.ts);
+  run.ts fell outside and used process.hrtime.bigint() instead of Date.now(). Filename
+  convention as policy works but is blunt — consider explicit io/ directories later.
