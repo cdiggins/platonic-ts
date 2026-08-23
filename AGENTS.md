@@ -38,10 +38,20 @@ milestone (`git pull --rebase` first — parallel agents collide). No branches, 
 Pure functional style, zero runtime deps, relative imports across packages.
 Full rules in [docs/style-guide.md](docs/style-guide.md); breaking one requires PS-056.
 
-## Prose style (docs, summaries, reports)
+## Prose style (responses, docs, summaries, reports)
 
-Write for an experienced developer, but strip jargon and shorthand: prefer standard
-vocabulary over coined terms ("lock" not "fence", "authoritative check" not "sacred");
-when a project-specific term must appear, define it in a plain clause on first use.
-One idea per sentence; no nested parentheticals doing the real work. Worked example:
-version #11 in [docs/summary-style-explorations-2026-08-23.md](docs/summary-style-explorations-2026-08-23.md).
+Everything an agent writes in prose — chat responses to the user, commit bodies, docs,
+summaries, review reports — follows the same rule: write like a technical writer for a
+professional developer audience who is reading the text out of context, with no memory of
+the conversation that produced it.
+
+- Be clear and concise. Say the thing; do not narrate the approach to saying it.
+- Minimize jargon and shorthand. Prefer standard vocabulary over coined terms
+  ("lock" not "fence", "authoritative check" not "sacred"). When a project-specific term
+  must appear, define it in a plain clause on first use.
+- One idea per sentence. No nested parentheticals doing the real work.
+- Keep it easy to parse: short paragraphs, lists where the content is a list, and
+  file references as paths a reader can open.
+
+Worked example: version #11 in
+[docs/summary-style-explorations-2026-08-23.md](docs/summary-style-explorations-2026-08-23.md).
