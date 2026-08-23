@@ -2,15 +2,15 @@
 id: BL-0016
 title: Build a code overview browser separate from the observability dashboard
 type: feature
-status: in-progress
+status: done
 priority: p2
 effort: L
 risk: med
 area: repo
 sprint:
 created: 2026-08-22
-closed:
-links: [BL-0006, BL-0011, decisions/2026-08-22-code-index-backend.md, docs/tooling-catalog.md, docs/claude-code-integration-2026-08-22.md, docs/tools-and-process.md]
+closed: 2026-08-23
+links: [BL-0006, BL-0011, BL-0017, BL-0018, BL-0019, decisions/2026-08-22-code-index-backend.md, docs/tooling-catalog.md, docs/claude-code-integration-2026-08-22.md, docs/tools-and-process.md]
 ---
 
 ## Idea
@@ -70,6 +70,25 @@ inside a slower build-and-reload loop, unshareable, and coupled to one editor.
   running agent, it cannot start work.
 - **Index freshness.** Rebuild on file watch, rebuild on request, or explicit reload endpoint.
   Watch is nicest and is the most moving parts.
+
+## Shipped (2026-08-23, wave 3)
+Five fenced tracks: `packages/codemap` (`symbols.ts`, `io.ts`, `metrics.ts`) and
+`packages/codeview` (`server.ts`, `io.ts`, `render.ts`, `ui.ts`), composed in
+`packages/codeview/src/main.ts`. `npm run codeview`, port 4848. Documented in
+[Tools, Skills, and Process](../docs/tools-and-process.md); seams and the markup contract in
+[CONTRACTS.md](../CONTRACTS.md); per-track findings in [NOTES.md](../NOTES.md).
+
+Verified end to end against the running server: index of 100 files / 3,531 symbols / 8,854
+references built in about 1.9s, cross-file go-to-definition, a references list, markdown with
+frontmatter stripped, 404 on an unknown path, 400 on traversal, and the feedback box filing a
+real backlog item.
+
+Deliberately not done, tracked separately: [BL-0017](BL-0017-zone-aware-platonic-score.md)
+(the score is zone-blind and therefore unfair to Root and Test files),
+[BL-0018](BL-0018-dashboard-close-hang.md) (latent hang found in the dashboard's server while
+building this one), [BL-0019](BL-0019-symbol-endpoint-and-trimmed-index.md) (2.1 MB index
+payload, and references that carry no symbol name). The `claude -p` feedback path and the MCP
+navigation consumer both remain unbuilt by choice.
 
 ## Decisions taken (2026-08-22, wave 3)
 - Backend: TypeScript compiler API, not `tsserver` or `scip-typescript` —
@@ -131,14 +150,14 @@ colored text with per-file counts, but it must not put symbol resolution, metric
 compiler access inside the HTTP handlers, or the second consumer becomes a rewrite.
 
 ## Done means
-- [ ] A command starts a local server on its own port, distinct from the dashboard's 4747
-- [ ] The tree lists every TypeScript file under `packages/`, and clicking one shows
+- [x] A command starts a local server on its own port, distinct from the dashboard's 4747
+- [x] The tree lists every TypeScript file under `packages/`, and clicking one shows
       syntax-colored source
-- [ ] Clicking a symbol navigates to its definition; a references view lists its use sites
-- [ ] Each file shows at least one quality metric, computed by code shared with `platonic check`
+- [x] Clicking a symbol navigates to its definition; a references view lists its use sites
+- [x] Each file shows at least one quality metric, computed by code shared with `platonic check`
       rather than duplicated
-- [ ] Markdown files render as formatted prose
-- [ ] Feedback typed in the browser lands somewhere an agent reads without a human relaying it
+- [x] Markdown files render as formatted prose
+- [x] Feedback typed in the browser lands somewhere an agent reads without a human relaying it
 
 ## Simplest possible implementation
 Copy the `node:http` server shape from `packages/dashboard/src/server.ts` into a new

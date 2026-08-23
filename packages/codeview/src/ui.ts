@@ -11,7 +11,7 @@
 //   - a reference token is `<a class="symbol" data-symbol="<SymbolId>" href="#">`
 //   - a definition token additionally carries `id="sym-<SymbolId>"`
 //   - highlight tokens carry their TokenClass as a class name (`keyword`, `string`, ...)
-// Line jumps degrade gracefully: `data-line`, then `#line-<n>`, then the nth `.line`.
+// Line jumps degrade gracefully: `data-line`, then `#line-<n>`, then the nth `.code-line`.
 
 const scoreRamp = `
   .s-a { color: #3fb950; }
@@ -136,10 +136,10 @@ const styles = `
     z-index: 2;
   }
   #source-body { padding: 8px 0 40px; }
-  .code { font-size: 12.5px; line-height: 1.5; white-space: pre; }
-  .code .line { display: block; padding: 0 12px; }
-  .code .line:target, .code .flash { background: #2d3a1f; }
-  .code .line-number, .code .lineno {
+  .code { font-size: 12.5px; line-height: 1.5; }
+  .code .code-line { display: block; padding: 0 12px; }
+  .code .code-line:target, .code .flash { background: #2d3a1f; }
+  .code .line-number {
     display: inline-block;
     width: 44px;
     text-align: right;
@@ -147,14 +147,15 @@ const styles = `
     color: #4b5468;
     user-select: none;
   }
-  .code .keyword { color: #ff7b72; }
-  .code .string { color: #a5d6ff; }
-  .code .number { color: #79c0ff; }
-  .code .comment { color: #6b7793; font-style: italic; }
-  .code .type { color: #ffa657; }
-  .code .identifier { color: #d8dee9; }
-  .code .punctuation { color: #8b949e; }
-  .code .plain { color: #d8dee9; }
+  .code .line-code { white-space: pre; }
+  .code .token-keyword { color: #ff7b72; }
+  .code .token-string { color: #a5d6ff; }
+  .code .token-number { color: #79c0ff; }
+  .code .token-comment { color: #6b7793; font-style: italic; }
+  .code .token-type { color: #ffa657; }
+  .code .token-identifier { color: #d8dee9; }
+  .code .token-punctuation { color: #8b949e; }
+  .code .token-plain { color: #d8dee9; }
   .code a.symbol { color: inherit; text-decoration: none; border-bottom: 1px dotted #4b5468; }
   .code a.symbol:hover { color: #8ab4f8; border-bottom-color: #8ab4f8; }
   .flash { animation: flash 1.2s ease-out; }
@@ -524,7 +525,7 @@ const clientScript = `
     var body = element('source-body');
     var node = body.querySelector('[data-line="' + line + '"]') || document.getElementById('line-' + line);
     if (!node) {
-      var lines = body.querySelectorAll('.line');
+      var lines = body.querySelectorAll('.code-line');
       node = lines.length >= line ? lines[line - 1] : null;
     }
     flash(node);

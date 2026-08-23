@@ -98,6 +98,61 @@ drives the routes on an ephemeral port with a fixture provider — and it is whe
 data source would be substituted. All filesystem access lives in `main.ts`, which is
 supervisor-owned (see [CONTRACTS.md](../CONTRACTS.md)).
 
+### `npm run codeview` — code overview browser
+
+Starts a second local server, on <http://localhost:4848>. It answers a different question from
+the dashboard: not what the agents are doing, but what the code itself looks like. Three panes —
+a folder and file tree on the left, the selected file in the middle, its metrics on the right —
+plus a feedback box along the bottom.
+
+`PORT` overrides the port. Stop it with Ctrl-C.
+
+**Reading source.** TypeScript files render syntax-coloured and line-numbered. Every identifier
+that resolves to a declaration in the repository is a link: clicking it jumps to the definition,
+loading the other file first when the definition lives elsewhere. A modifier-click, or the
+references button in the right pane, lists every use site instead, each one clickable. Markdown
+files render as formatted prose, with YAML frontmatter stripped, so readmes, design notes,
+decision records, and backlog items are readable in place.
+
+**Metrics.** Every TypeScript file and every folder carries a set of counts — lines, statements,
+nesting depth, parameters, mutable bindings, classes, throws, the five escape hatches, exported
+symbols, imports — and a single 0-100 *platonic score* derived from them by an explicit weight
+table in `packages/codemap/src/metrics.ts`, where each weight names the style-guide rule it
+penalises. The right pane also lists every function in the file with its own score, sorted worst
+first. The score is a heuristic for finding things to look at, not a verdict: it is currently
+zone-blind, so composition roots and test files are penalised for the mutation and `throw` that
+[the style guide](style-guide.md) explicitly permits them.
+
+Escape-hatch counts come from the same `countEscapeHatches` that `platonic check` uses, so the
+browser and the gate cannot drift apart.
+
+**Feedback.** The box at the bottom sends a note, together with whatever file and symbol are
+selected, to `POST /api/feedback`. The server writes it into `backlog/` as a new `BL-XXXX` item
+with `status: idea`, which is the same intake the `track-idea` skill uses — so a note left here
+is picked up the next time an agent reads the backlog. Nothing is sent anywhere else, and no
+agent is spawned.
+
+**Where the data comes from.** A `CodeIndex` built by `packages/codemap` from the TypeScript
+compiler API: `indexRepo` creates a program over the repository's `tsconfig.json`, walks it for
+declarations and identifier references, and computes the metrics in the same pass. It covers
+`packages/*/src` and `packages/*/test`, plus the markdown in the repository root, `docs/`,
+`decisions/`, and `backlog/`. On this repository that is about 100 files and takes roughly two
+seconds; the index is rebuilt on demand with a five-second time-to-live, so an edit shows up on
+the next request rather than needing a restart. The decision to build the index on the compiler
+API rather than wrap `tsserver` is recorded in
+[the ADR](../decisions/2026-08-22-code-index-backend.md).
+
+**Scope.** This tool covers source code. Agent activity, token usage, and session transcripts
+belong to the observability dashboard on 4747; the two are deliberately separate applications,
+for the reasons given under [Scope](#scope-what-the-dashboard-is-not) above.
+
+**Architecture.** The same shape as the dashboard: `node:http` only, zero runtime dependencies,
+a self-contained HTML page with inline CSS and JavaScript. `server.ts` takes injected providers
+and never touches the filesystem; `packages/codeview/src/main.ts` composes the index, the
+renderers, and the feedback sink and is the only place filesystem access lives. `render.ts` is
+pure — source text plus symbols in, HTML out — which is why the tokeniser and the markdown
+renderer are unit-testable without a browser.
+
 ### The backlog
 
 Work items are one markdown file each in `backlog/`, named `BL-0001-slug.md`, with a small

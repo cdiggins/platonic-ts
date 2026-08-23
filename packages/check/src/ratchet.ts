@@ -90,16 +90,23 @@ const isCommentTrivia = (kind: ts.SyntaxKind): boolean =>
 
 // Scans the full token stream (trivia included) and collects the text of
 // every comment in the file, independent of which AST node it attaches to.
+//
+// PS-056: `let` in Core, deliberately. The recursive version
+// of this walk recursed once per token and overflowed the stack at roughly 26 KB
+// of source (`packages/dashboard/src/ui.ts`) — and it did so depending on how
+// deep the caller's own stack already was, so `platonic check` passed while the
+// same function called from `packages/codemap` threw. A cursor is the honest
+// shape for an unbounded token stream; a fold would need the tokens materialized
+// first, which is the thing that does not fit.
 const collectCommentText = (sourceText: string): string => {
   const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, sourceText)
-  const scanRest = (): readonly string[] => {
-    const kind = scanner.scan()
-    if (kind === ts.SyntaxKind.EndOfFileToken) return []
-    const text = isCommentTrivia(kind) ? scanner.getTokenText() : undefined
-    const rest = scanRest()
-    return text === undefined ? rest : [text, ...rest]
+  let collected = ''
+  let kind = scanner.scan()
+  while (kind !== ts.SyntaxKind.EndOfFileToken) {
+    collected = isCommentTrivia(kind) ? `${collected}\n${scanner.getTokenText()}` : collected
+    kind = scanner.scan()
   }
-  return scanRest().join('\n')
+  return collected
 }
 
 export const countEscapeHatches = (fileName: string, sourceText: string): RatchetCounts => {

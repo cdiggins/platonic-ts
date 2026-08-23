@@ -476,5 +476,14 @@ const renderBlocks = (lines: readonly string[]): string => {
     .join('\n')
 }
 
+// Backlog items and ADRs open with YAML frontmatter. Rendered as markdown it
+// becomes a rule, a paragraph of key/value noise, and another rule; dropping it
+// is what a reader wants. A lone leading `---` with no closing fence is a real
+// horizontal rule and is left alone.
+const withoutFrontmatter = (lines: readonly string[]): readonly string[] => {
+  const closing = lines[0] === '---' ? lines.indexOf('---', 1) : -1
+  return closing === -1 ? lines : lines.slice(closing + 1)
+}
+
 export const renderMarkdown = (markdown: string): string =>
-  renderBlocks(markdown.split('\n').map((line) => line.replace(/\r$/, '')))
+  renderBlocks(withoutFrontmatter(markdown.split('\n').map((line) => line.replace(/\r$/, ''))))

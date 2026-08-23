@@ -76,13 +76,13 @@ describe('renderPage rendered-source contract', () => {
   it('has fallbacks for locating a line', () => {
     expect(page).toContain('[data-line="')
     expect(page).toContain("getElementById('line-' + line)")
-    expect(page).toContain("querySelectorAll('.line')")
+    expect(page).toContain("querySelectorAll('.code-line')")
   })
 
   it('styles both syntax tokens and rendered markdown prose', () => {
-    expect(page).toContain('.code .keyword')
-    expect(page).toContain('.code .string')
-    expect(page).toContain('.code .comment')
+    expect(page).toContain('.code .token-keyword')
+    expect(page).toContain('.code .token-string')
+    expect(page).toContain('.code .token-comment')
     expect(page).toContain('.markdown h1')
     expect(page).toContain('.markdown pre')
     expect(page).toContain('.markdown table')

@@ -557,3 +557,137 @@ unchanged).
 - Tests: `packages/hooks/test/tail.test.ts` (8 tests) — missing file ok, read from new file, append-then-poll incremental, partial line held then completed, malformed-line skip, truncation reset, remainder preservation across multi-chunk partial, empty-line tolerance. Uses temp dir (node:os tmpdir).
 - No external deps (node:fs/promises, node:path, core's splitJsonlChunk only).
 - Gate results (this fence): `npx tsc --noEmit` clean for packages/hooks; `npx vitest run packages/hooks` 25/25 passed (17 existing + 8 new); `npx eslint packages/hooks` clean (immutable-data and no-unsafe-assignment enforced).
+
+## Wave 3 — BL-0016 code overview browser (`packages/codemap`, `packages/codeview`)
+
+Five fenced tracks built on stubs the supervisor landed first. Every track kept its signature;
+the only integration defects were two the supervisor's own seam spec left ambiguous, both
+listed below. Findings by track.
+
+### Track F — symbol index (`codemap/src/symbols.ts`, `codemap/src/io.ts`)
+
+- **`ts.getCombinedModifierFlags` needs bound parent pointers, and caches the wrong answer
+  without them.** It walks parents to find the `export` on the `VariableStatement` two levels
+  above a `VariableDeclaration`. On an unbound program file every `export const` in the repo
+  came back `exported: false` — and the wrong `0` is cached on the node, so it stays wrong
+  after binding. Correctness silently depended on whether the checker had been created yet.
+  Fixed by making `extractSymbols` parent-independent (`ts.canHaveModifiers`/`ts.getModifiers`,
+  which are syntactic and uncached) and threading the statement's export flag down the walk.
+  `indexRepo` also creates the checker up front, which binds every file eagerly.
+- `node.getChildren(sourceFile)` was chosen over `ts.forEachChild` because the latter only
+  reports through a callback and forces a mutable accumulator. The cost is materializing token
+  nodes; measured worth it.
+- Measured on this repo (100 files, 3531 symbols, 8854 references): ~1.9s cold. Phase split
+  roughly `buildProgram` 1.0s, `extractSymbols` 70ms, `getTypeChecker()` 180ms, references
+  480ms. Under concurrent-agent load the whole thing inflates about sixfold and uniformly —
+  machine contention, not a hot spot.
+- Import specifiers count as references, so an imported name yields the specifier plus each use
+  site. Deliberate: the browser wants the import line clickable.
+- Overloads and merged declarations: only the declaration `valueDeclaration`/`declarations[0]`
+  points at is marked `isDefinition`. This repo has no overloads; a repo with them would see a
+  declaration name marked `isDefinition: false`.
+- Symbol kinds actually present repo-wide: `variable`, `property`, `function`, `type`. Zero
+  classes, interfaces, enums, methods — the style guide holding. Those code paths are covered
+  by synthetic-source unit tests rather than by real data.
+- `metrics: undefined` on markdown entries disappears through `JSON.stringify`, so a
+  `FileEntry` round-trips as a missing key rather than a present-undefined one. Equivalent for
+  `=== undefined`, not for key-existence checks, and `exactOptionalPropertyTypes` says
+  otherwise in the type.
+
+### Track G — metrics and the platonic score (`codemap/src/metrics.ts`)
+
+- Score is `round(clamp(100 - sum of weight x value))` over an explicit penalty table, each
+  entry naming the PS rule it maps to. Rate penalties normalise per 100 lines with a 40-line
+  floor, so a big clean file does not lose to a small dirty one. Observed over 55 files at the
+  time: median 86, best 100, worst 39.
+- **The score is zone-blind, and that is the single biggest source of unfair numbers.**
+  `CodeMetrics` carries no zone, so Root files are penalised for the `let` and nesting that
+  PS-020/PS-004 explicitly permit there, and Test files for the `throw` PS-003 permits and for
+  a statement density inherent to `expect(...)` assertions. `codeview/src/server.ts` at 61 and
+  every test file are artefacts of this, not signal.
+- **PS-024 and PS-025 do not survive summation.** They are per-file ceilings; once files are
+  summed into a folder the file count is gone and the terms saturate into "this aggregate is
+  big". Bounded as fractions to cap the damage at 30 points. Measuring them properly at folder
+  level needs a per-file distribution on `FolderEntry`, not a summed `CodeMetrics`.
+- `sumMetrics` takes the **max** of `maxNestingDepth` rather than summing it; summed depths
+  across dozens of files are uninterpretable and would peg every folder to zero.
+- Per-function escape hatches re-parse the function's own text (`countEscapeHatches` is a text
+  function), wrapping the fragment so it parses standalone.
+- Not mechanically measurable from an AST alone: PS-023 (needs the cross-package import graph),
+  PS-033/041/047 (need a name lexicon), PS-042/043/048/049/051 (need type and call-graph
+  information — `functionMetrics` has a `SourceFile`, not a `Program`), PS-055, PS-056 (needs
+  commit context). PS-021/022/026/027/028/029/030/031 are all cheap additions left out only to
+  keep the table small.
+
+### Track H — server and feedback sink (`codeview/src/server.ts`, `codeview/src/io.ts`)
+
+- **`packages/dashboard/src/server.ts` has a latent hang**: its `close()` never calls
+  `server.closeAllConnections()`, so a leaked keep-alive socket can make `server.close()` wait
+  forever. It works today on undici timing luck. codeview does call it.
+- Body caps need two checks: an early `content-length` reject and a streaming byte counter for
+  chunked or absent headers. An oversized body must be **drained**, not destroyed — destroying
+  the socket loses the 413 response.
+- **Backlog titles must be single-line.** `parseBacklogFile` splits frontmatter on the first
+  newline, so a multi-line title silently corrupts the item. The sink collapses whitespace and
+  truncates to 72 characters. Now written into the seam.
+- Id allocation reads filenames, not frontmatter, so one directory read suffices and a
+  corrupt-frontmatter file still reserves its number. Two concurrent posts could collide on an
+  id; acceptable for a single-user local tool, worth naming if feedback ever goes concurrent.
+- `FeedbackResult.file` returns a native path (backslashes on Windows) while everything in
+  `CodeIndex` is forward-slash repo-relative. Two path conventions in one API.
+- `packages/backlog/src/index.ts` imports core with a `.js` extension while every other package
+  uses `.ts`. Both resolve under Bundler resolution; the repo is just inconsistent.
+
+### Track I — the page (`codeview/src/ui.ts`)
+
+- **`SymbolReference` carries no name or signature.** When a reference points into a file that
+  is not on screen, `FileView.symbols` has no entry for it, so the pane can only show a raw id.
+  Cross-file navigation currently loads an entire `FileView` — source HTML included — just to
+  learn a symbol's name. Wants either fields on `SymbolReference` or a `{ symbol, references }`
+  envelope, plus a single-symbol endpoint.
+- **The index endpoint serializes to about 2.1 MB** on this repo, and the UI discards its
+  `symbols` and `references` fields entirely — it fetches per file. A trimmed index would be
+  strictly better; harmless only because the repo is small.
+- `FolderEntry` has no parent/child links, so the tree is rebuilt client-side by splitting
+  `FileEntry.file` on `/` and joining against `folders` by path string — the client re-deriving
+  structure the indexer already knew.
+- `FeedbackResult` cannot confirm what was filed beyond an id; no path to open, no echo of the
+  file/symbol context.
+- Error bodies are `{ error: string }` throughout. Now written into the seam.
+
+### Track J — rendering (`codeview/src/render.ts`)
+
+- **Recursion per token overflows the stack at roughly 700 source lines.** The first
+  implementation followed the recursion pattern in `packages/check/src/ratchet.ts` and threw a
+  `RangeError` on a 1000-line file. Replaced with cursor-driven loops and a binary search to
+  locate a line's tokens: 50k lines highlight in about 220ms and render in about 320ms.
+- **The same latent bug was live in `ratchet.ts` itself** and the supervisor hit it at
+  integration — see below.
+- Scanner warts, classification only, never affecting the byte-exact cover: template literals
+  with substitutions lose their framing after the first closing brace, and regex literals scan
+  as a slash punctuation token because there is no rescan pass.
+- Security: all text is escaped before any inline pass, so raw HTML can never pass through, and
+  link and image URLs outside `http`/`https`/`mailto` are left as escaped text.
+- Markdown deliberately unsupported, all degrading to escaped plain text: setext headings,
+  reference links, footnotes, task-list checkboxes, two-space hard breaks, autolinks, lazy list
+  continuation, emphasis inside link text, table column alignment, and a table not preceded by
+  a blank line.
+
+### Supervisor — integration
+
+- **Two seam ambiguities, both the supervisor's fault, both invisible until the panes met.**
+  CONTRACTS.md said tokens carry `class="token-<class>"` but never specified the per-line
+  markup; Track I built CSS against bare `.keyword` and `.line`, Track J emitted `.token-keyword`
+  and `.code-line`. Everything typechecked, every test passed, and syntax colouring was simply
+  dead. Fixed by moving the UI onto the renderer's actual markup and writing the full markup
+  contract into the seam. The lesson: a seam expressed only as TypeScript signatures does not
+  constrain the strings crossing it. HTML class names are an interface and need the same
+  treatment as a function signature.
+- **`collectCommentText` in `packages/check/src/ratchet.ts` recursed once per token** and
+  overflowed at about 26 KB of source (`packages/dashboard/src/ui.ts`). It failed as a function
+  of the caller's own stack depth, so `platonic check` passed while the identical call from
+  `packages/codemap` threw — a green gate sitting over a real defect. Rewritten as a cursor.
+- End-to-end verified against the live server on 4848: cross-file go-to-definition (`truncate`
+  in `codemap/src/symbols.ts` to `core/src/index.ts`, 10 references), markdown with frontmatter
+  stripped, 404 on an unknown path, 400 on traversal, and the feedback box filing a real
+  backlog item (removed afterwards).

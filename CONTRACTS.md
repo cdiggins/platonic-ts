@@ -112,7 +112,9 @@ folderMetrics(files: readonly FileEntry[]): readonly FolderEntry[]
 
 Escape-hatch counts come from `packages/check/src/ratchet.ts`'s `countEscapeHatches` — reused,
 not reimplemented, so the browser and `platonic check` can never disagree. `sumMetrics`
-recomputes `platonicScore` from the summed components rather than averaging scores.
+recomputes `platonicScore` from the summed components rather than averaging scores, and takes
+the **max** of `maxNestingDepth` rather than summing it: summed depths across dozens of files
+are uninterpretable and would peg every folder to zero.
 
 ### Seam — `packages/codeview/src/render.ts` (Track J, pure)
 
@@ -125,9 +127,31 @@ renderSourceHtml(source, symbols: readonly SymbolInfo[], references: readonly Sy
 renderMarkdown(markdown: string): string
 ```
 
-`renderSourceHtml` emits numbered lines. A token that coincides with a reference span becomes
-`<a class="symbol" data-symbol="<id>" href="#">`; a token that coincides with a definition span
-also carries `id="sym-<id>"` so in-file jumps work without JavaScript. All text is escaped.
+`renderSourceHtml` emits this markup, exactly. The class names are as much a contract as the
+signatures above — Wave 3 shipped a UI whose CSS targeted different names, everything
+typechecked, every test passed, and syntax colouring was silently dead:
+
+```html
+<div class="source">
+  <div class="code-line" id="line-1">
+    <span class="line-number">1</span>
+    <span class="line-code">
+      <span class="token-keyword">const</span>
+      <a class="symbol" data-symbol="pkg/f.ts#6" href="#" id="sym-pkg/f.ts#6"
+        ><span class="token-identifier">alpha</span></a>
+    </span>
+  </div>
+</div>
+```
+
+Token classes are `token-` plus a `TokenClass` member. Reference anchors wrap the token span;
+definition anchors add `id="sym-<id>"`. Indentation is literal spaces, so the consumer must
+set `white-space: pre` on `.line-code`. Symbol ids contain `/`, `.`, and `#`, so
+`getElementById` works but a raw `querySelector('#sym-…')` does not. All text is escaped, and
+link/image URLs outside `http`/`https`/`mailto` are left as escaped text. `renderMarkdown`
+strips YAML frontmatter and emits only `h1`-`h6`, `p`, `hr`, `pre > code`, `ul`/`ol`/`li`,
+`blockquote`, `table`/`thead`/`tbody`/`tr`/`th`/`td`, `strong`, `em`, `code`, `a[href]`,
+`img[src][alt]`.
 
 ### Seam — `packages/codeview/src/ui.ts` (Track I, pure)
 
@@ -153,8 +177,13 @@ HTTP surface:
 - `POST /api/feedback` — body `FeedbackInput` JSON, returns `FeedbackResult`
 
 The server reads no files: everything comes from the injected providers, exactly as
-`packages/dashboard/src/server.ts` does. `appendFeedbackItem` allocates the next free
-`BL-XXXX` id in `backlogDir` and writes a WorkQuarry item with `status: idea`.
+`packages/dashboard/src/server.ts` does. Every error response body is `{ "error": string }`.
+`appendFeedbackItem` allocates the next free `BL-XXXX` id in `backlogDir` and writes a
+WorkQuarry item with `status: idea`.
+
+**Backlog titles are single-line and at most 72 characters.** `parseBacklogFile` splits
+frontmatter on the first newline, so a multi-line title silently corrupts the item — anything
+generating a backlog file must collapse whitespace and truncate.
 
 ## Wave 2 fences (superseded)
 

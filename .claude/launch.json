@@ -5,7 +5,15 @@
       "name": "dashboard",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dashboard"],
-      "port": 4747
+      "port": 4747,
+      "autoPort": true
+    },
+    {
+      "name": "codeview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "codeview"],
+      "port": 4848,
+      "autoPort": true
     }
   ]
 }

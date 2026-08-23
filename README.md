@@ -14,7 +14,11 @@ a functional-subset ESLint configuration, and a live agent-observability dashboa
 models, token rates, the backlog (`backlog/`), and documents in real time. The dashboard covers
 agent activity and logged work only; browsing and scoring the source code is a separate tool's
 job, and the boundary is explained in
-[Tools, Skills, and Process](docs/tools-and-process.md#scope-what-the-dashboard-is-not). The [Documents](#documents) section indexes
+[Tools, Skills, and Process](docs/tools-and-process.md#scope-what-the-dashboard-is-not). That
+separate tool now exists: a code overview browser (`npm run codeview`, port 4848) that indexes
+the repository's own TypeScript with the compiler API and serves syntax-coloured source with
+go-to-definition, find-references, rendered markdown, per-function and per-folder quality
+metrics, and a feedback box that files backlog items. The [Documents](#documents) section indexes
 the design notes. The tools, skills, and multi-agent process are documented for humans in
 [Tools, Skills, and Process](docs/tools-and-process.md). The backlog now follows the
 [WorkQuarry](https://github.com/ara3d/workquarry) issue-tracking schema, implemented natively
