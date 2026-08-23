@@ -16,5 +16,5 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0019](BL-0019-symbol-endpoint-and-trimmed-index.md) | Give references a symbol envelope and trim the index payload | debt | p3 | M | low | codeview | ready |  |
 | [BL-0011](BL-0011-conformance-score.md) | Score purity, complexity, and quality against the platonic ideals | idea | ? | ? | ? | repo | idea |  |
 | [BL-0020](BL-0020-start-work-skill.md) | Add start-work command that records the execution approach | feature | ? | M | low | repo | idea |  |
-| [BL-0022](BL-0022-caveman-final-answer-clarity.md) | Keep caveman for working output, make final answers clear | idea | ? | ? | low | repo | idea |  |
+| [BL-0022](BL-0022-caveman-final-answer-clarity.md) | Drop caveman default — measured saving ~2%, override cost ~11% of turns | idea | ? | ? | low | repo | idea |  |
 | [BL-0023](BL-0023-archive-closed-items.md) | Move closed items to backlog/archive/ so the live backlog stays small | feature | ? | S | low | packages/backlog | idea |  |
