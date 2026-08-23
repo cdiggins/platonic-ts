@@ -195,6 +195,8 @@ export type SymbolReference = {
 // metrics are the sum of its files'.
 export type CodeMetrics = {
   readonly lines: number
+  // Every node of the TypeScript AST in this unit, the unit's own root included.
+  readonly nodes: number
   readonly statements: number
   readonly maxNestingDepth: number
   readonly parameters: number

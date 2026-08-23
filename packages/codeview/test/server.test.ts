@@ -12,6 +12,7 @@ import type {
 
 const metrics: CodeMetrics = {
   lines: 10,
+  nodes: 42,
   statements: 4,
   maxNestingDepth: 1,
   parameters: 2,

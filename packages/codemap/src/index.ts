@@ -17,3 +17,16 @@ export {
   functionMetrics,
   folderMetrics,
 } from './metrics.ts'
+export { childrenOf, subtreeNodes, sizedNodes, type SizedNode } from './walk.ts'
+export { summarize, type Summary } from './summary.ts'
+export {
+  zoneOf,
+  sizeReport,
+  populationNames,
+  type Zone,
+  type PopulationName,
+  type PopulationReport,
+  type SizeReport,
+  type SourceEntry,
+} from './stats.ts'
+export { formatSizeReport } from './report.ts'

@@ -22,8 +22,9 @@
 // file-length PS-024; export-surface PS-025; nesting-depth PS-055; statement-density
 // PS-052 (build values with pipelines, not statement sequences).
 //
-// `parameters` is counted but not penalised — no PS rule sets a parameter budget, and
-// BL-0011 says keep the raw count rather than invent a threshold.
+// `parameters` and `nodes` are counted but not penalised — no PS rule sets a parameter or
+// AST-size budget, and BL-0011 says keep the raw count rather than invent a threshold. What
+// reads them is the size report in `stats.ts`, which describes their distribution instead.
 //
 // Escape-hatch counts come from `countEscapeHatches` (packages/check/src/ratchet.ts) so the
 // browser and `platonic check` can never disagree about what an escape hatch is.
@@ -36,12 +37,14 @@ import type {
 } from '../../core/src/index.ts'
 import { countEscapeHatches } from '../../check/src/ratchet.ts'
 import { toRepoRelative } from './symbols.ts'
+import { childrenOf, subtreeNodes } from './walk.ts'
 
 // Everything in CodeMetrics except the derived score.
 type MetricCounts = Omit<CodeMetrics, 'platonicScore'>
 
 export const emptyMetrics: CodeMetrics = {
   lines: 0,
+  nodes: 0,
   statements: 0,
   maxNestingDepth: 0,
   parameters: 0,
@@ -124,6 +127,7 @@ export const sumMetrics = (metrics: readonly CodeMetrics[]): CodeMetrics =>
     metrics.reduce<MetricCounts>(
       (acc, m) => ({
         lines: acc.lines + m.lines,
+        nodes: acc.nodes + m.nodes,
         statements: acc.statements + m.statements,
         maxNestingDepth: Math.max(acc.maxNestingDepth, m.maxNestingDepth),
         parameters: acc.parameters + m.parameters,
@@ -145,21 +149,6 @@ export const sumMetrics = (metrics: readonly CodeMetrics[]): CodeMetrics =>
 // ---------------------------------------------------------------------------
 // AST walking.
 // ---------------------------------------------------------------------------
-
-// forEachChild is the only child enumeration the compiler exposes; the array is rebuilt
-// rather than mutated (PS-004).
-const childrenOf = (node: ts.Node): readonly ts.Node[] => {
-  let collected: readonly ts.Node[] = []
-  node.forEachChild((child) => {
-    collected = [...collected, child]
-  })
-  return collected
-}
-
-const subtreeNodes = (node: ts.Node): readonly ts.Node[] => [
-  node,
-  ...childrenOf(node).flatMap(subtreeNodes),
-]
 
 // Nesting is counted in braces: a block, a switch body, a module body. An `if` without
 // braces or an arrow with an expression body adds no level, which is the point — the
@@ -211,8 +200,15 @@ const structuralCounts = (
   nodes: readonly ts.Node[],
 ): Pick<
   MetricCounts,
-  'statements' | 'parameters' | 'mutableBindings' | 'classes' | 'throwStatements' | 'imports'
+  | 'nodes'
+  | 'statements'
+  | 'parameters'
+  | 'mutableBindings'
+  | 'classes'
+  | 'throwStatements'
+  | 'imports'
 > => ({
+  nodes: nodes.length,
   statements: nodes.filter(ts.isStatement).length,
   parameters: nodes.filter(ts.isParameter).length,
   mutableBindings: mutableBindingCount(nodes),

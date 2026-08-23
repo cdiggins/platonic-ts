@@ -68,6 +68,14 @@ Measured across the 41 pure source files under `packages/*/src` — excluding te
 | Boolean parameters | 4 of 477 total parameters (0.8%) |
 | Parameters whose type is a named record | 110 of 477 (23%) |
 
+These figures were measured by hand for this report. `npm run stats` now recomputes the same
+kind of table from the repository as it stands, split by the style guide's Core, Root, and Test
+zones. Its numbers will not match this table exactly, and the difference is a population
+definition rather than a discrepancy: the tool counts every named function, including the local
+helpers declared inside another function, where the count above was of top-level functions only.
+Median and 75th percentile agree; the upper tail is lower in the tool's figures, because the
+larger population it measures contains many more small functions.
+
 So the style is not aspirational here — it is already the shape of the code. Over half of all
 functions take exactly one argument, and flags have all but disappeared. That makes this a good
 place to ask what the practice has actually bought, and what it has cost.
