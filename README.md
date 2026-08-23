@@ -22,6 +22,13 @@ metrics, and a feedback box that files backlog items. A session-corpus analyzer
 (`npm run transcripts`) reports where tokens went across a project's Claude Code transcripts —
 context composition, per-tool and per-file cost, skill usage — documented in
 [Tools, Skills, and Process](docs/tools-and-process.md#npm-run-transcripts--session-corpus-analyzer).
+There is also an MCP server (`npm run mcp`, registered in `.mcp.json`) that gives an agent nine
+tools for the mechanical work — file outlines, one declaration at a time, type-checked
+find-references, rename across the repository, editing addressed by declaration name rather than
+by matching surrounding text, and the check gate. Measured against the general-purpose read,
+search, and edit tools on the same questions, it puts 43% to 96% fewer tokens into the agent's
+context, and answers two of those questions correctly where text search does not
+([design note and measurements](docs/mcp-server-2026-08-23.md)).
 The [Documents](#documents) section indexes
 the design notes. The tools, skills, and multi-agent process are documented for humans in
 [Tools, Skills, and Process](docs/tools-and-process.md). The backlog now follows the
@@ -164,6 +171,7 @@ Early design notes. Everything here is a first draft, and nothing is implemented
 * [Pure Functional Programming for Agent-Driven Development](docs/pure-fp-for-agents-2026-08-22.md) — the pros and cons of pure FP with agents; concludes for a pure functional subset of TypeScript, against pure FP languages and heavy monadic abstraction.
 * [Testing, Gates, Ratchets, and Goldens](docs/testing-gates-ratchets-goldens-2026-08-22.md) — a taxonomy of mechanical enforcement: what each mechanism claims, when it checks, which direction change may move, and who may bless a change to the claim itself.
 * [Claude Code Integration](docs/claude-code-integration-2026-08-22.md) — which hooks, MCP tools, skills, and agents make sense, placed by one rule: checkable rules become hooks, questions become MCP tools, only the uncheckable residue becomes skills.
+* [An MCP Server for the Mechanical Half of Coding](docs/mcp-server-2026-08-23.md) — what the nine tools do, why text search and text-matching edits are both expensive and wrong, and the measured token cost of each against the conventional tool. (Implemented — unlike the design notes above.)
 
 ## History
 

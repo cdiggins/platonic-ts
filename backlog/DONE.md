@@ -6,6 +6,7 @@ Append-only log of closed items, newest first. Regenerated from frontmatter;
 items only ever join this list, never leave it, so it behaves as an event log.
 
 - 2026-08-23 — [BL-0016](BL-0016-code-overview-browser.md) — Build a code overview browser separate from the observability dashboard — done
+- 2026-08-23 — [BL-0026](BL-0026-mcp-server.md) — MCP server for mechanical coding tasks — done
 - 2026-08-22 — [BL-0001](BL-0001-platonic-check.md) — Build platonic check package — done
 - 2026-08-22 — [BL-0006](BL-0006-dashboard.md) — Live observability dashboard — done
 - 2026-08-22 — [BL-0002](BL-0002-escape-hatch.md) — Escape-hatch ratchet — done
