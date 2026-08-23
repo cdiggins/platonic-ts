@@ -412,3 +412,65 @@ No contract friction, no dependency requests — `node:fs`, `node:fs/promises`, 
 - Gates: `npx tsc --noEmit` clean (gitlink only — pre-existing errors outside this fence in
   `packages/init`, unrelated), `npx vitest run packages/gitlink` 22/22 passed, `npx eslint
   packages/gitlink` clean.
+
+### Wave 4 Track M — `platonic init` retrofitter (BL-0010)
+
+New package `packages/init` (`@platonic/init`, private, zero deps beyond `node:*` + a
+read-only relative import of `packages/check`). Shape: pure planner (`src/index.ts`), impure
+edges (`src/io.ts`), CLI root (`src/main.ts`), profile-parameterized templates under
+`src/templates/`.
+
+Plan format decisions worth keeping:
+
+- **Three action kinds, no fourth.** `writeFile` (path + full content), `mergeJson` (path +
+  `additions` + `conflicts`), `skip` (path + reason). Every action carries a `reason` string
+  so the printed plan explains itself without a second lookup table.
+- **Conflicts are data, not prose, and are never applied.** `splitMerge` walks the proposed
+  JSON fragment against the target's: missing key -> addition, same value -> vanishes,
+  different value -> `{ key: 'compilerOptions.strict', existing, proposed }`. `applyPlan` only
+  ever writes `additions`, so a merge can grow a file but never change a value the target
+  already chose. Conflicts are re-rendered as `manualSteps`.
+- **Non-JSON files get a sidecar, never a merge.** An existing eslint config of any of ten
+  known names means the plan writes `eslint.platonic.config.js` instead, plus a manual step.
+  Consequence worth knowing: re-running init on a repo init already retrofitted proposes the
+  sidecar (init's own `eslint.config.js` now exists). Consistent with never-clobber, mildly
+  surprising.
+- **`tsconfig` merge proposes strictness flags only** — never `target`/`module`/`lib`. Those
+  are the target repo's business and would produce noise conflicts. The full file (with
+  `target`/`module`/`lib`) is written only when the target has no tsconfig at all.
+- **`observe` is a measurement profile: it installs nothing that can fail.** ratchet baseline
+  only — no tsconfig, no eslint config, no npm scripts, no devDependencies. `standard` adds
+  strict tsc + type-checked lint + `typecheck`/`lint`/`check` scripts; `full` adds the
+  functional subset and the purity bans, with the same three zones this repo uses but
+  generalized (`**/main.ts|server.ts|io.ts` for roots, `**/*.test.ts` + `**/test/**` for tests).
+- **An existing `ratchet.json` is never rewritten — it becomes a drift report.** The skip
+  reason runs `compareToBaseline` and prints `counts ok|improved` or `regressed on asCasts`.
+  Re-running `platonic init` is therefore the ratchet check for a retrofitted repo; there is
+  no `platonic check` binary to point a script at yet, and the plan does not pretend otherwise
+  (installed scripts are plain `tsc --noEmit` / `eslint .` that the target can really run).
+- **Nothing is written without `--yes`.** `parseInitArgs` folds `--dry-run || !--yes` into a
+  single `dryRun` flag; the plan is always printed first. Default profile is `observe`.
+
+Findings:
+
+- `countEscapeHatches` retrofitted onto a foreign layout with no change, confirming the
+  earlier Gratify probe. Only check's `scanRepo` is platonic-ts-shaped (it assumes
+  `packages/*/src`), so `io.ts` carries its own walk (skips `node_modules`, `.git`, `dist`,
+  `build`, `out`, `coverage`, `.next`, and `*.d.ts`). Candidate for a later BL: give
+  `packages/check` a layout-agnostic scanner and delete the duplicate walk.
+- `JSON.parse` returns `any`, and `... as JsonValue` would have cost the repo an `asCasts`
+  point. Avoided by typing the parse result `unknown` and widening `isJsonObject` to
+  `(value: unknown) => value is JsonObject`. Same trick works for `Array.isArray`, which
+  widens a `JsonValue` union to `any[]` and trips `no-unsafe-argument` — a
+  `(value: JsonValue): value is readonly JsonValue[]` predicate fixes it without a cast.
+  Worth generalizing: **strict JSON handling needs zero escape hatches if you own a
+  `JsonValue` type and two type predicates.**
+- Package adds **0** escape hatches across its 11 files, so `ratchet.json` needs no bump.
+
+Gate results (fence-scoped): `npx eslint packages/init` clean; `npx tsc --noEmit` reports no
+errors in `packages/init` (2 pre-existing errors in `packages/gitlink/src/index.ts` from
+Track P, untouched); `npx vitest run packages/init` 25/25 passed (13 plan, 7 io, 5 args).
+Smoke: dry run against a temp repo with a conflicting `scripts.lint` and `strict: false`
+printed a 4-action plan + 4 manual steps and wrote nothing; `--yes` applied it, leaving both
+conflicting values intact; a re-run after adding an `as` cast reported
+`regressed on asCasts`; the generated `eslint.config.js` parses under `node --check`.
