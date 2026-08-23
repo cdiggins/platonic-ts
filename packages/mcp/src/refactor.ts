@@ -38,6 +38,14 @@ const resolveTarget = (compiler: Compiler, name: string, file: string | undefine
   if (!lookup.ok) return { ok: false, text: explainLookup(name, lookup).text }
   const range = declarationRange(lookup.sourceFile, lookup.symbol)
   if (range === undefined) return { ok: false, text: `${name} has no declaration range.` }
+  // The language service raises rather than returning a failure when it is
+  // asked about a file the program does not contain, so the file is checked
+  // before any call is made.
+  if (compiler.boundSourceFile(lookup.symbol.file) === undefined)
+    return {
+      ok: false,
+      text: `${lookup.symbol.file} is indexed but not in the compiler's program; no refactorings can be computed for ${name}.`,
+    }
   return {
     ok: true,
     target: {
