@@ -8,7 +8,8 @@ argument-hint: <the issue, in a phrase or paragraph>
 
 Sibling of `/track-idea`, for defects and liabilities rather than opportunities:
 `type: bug | debt | problem | retire` (use `/track-idea` for `idea`/`feature`). You create
-and edit `backlog/*.md` item files directly; investigation is yours. After creating or
+and edit `backlog/*.md` item files directly (closed ones live in `backlog/archive/`);
+investigation is yours. After creating or
 changing any item, run `npm run backlog:regen` to rebuild `backlog/BACKLOG.md` and
 `backlog/DONE.md`. Process reference: `decisions/2026-08-22-adopt-workquarry-format.md`.
 Schema types: `packages/core/src/index.ts`.
@@ -31,18 +32,30 @@ Unlike ideas, issues must point at something real:
 - Find the affected files/symbols with `Grep`/`Glob`; record `path:line` where possible.
 - For bugs: capture the repro or the observed-vs-expected behavior from conversation, logs,
   or a quick check. Do not run long builds/tests just to file — note "unverified" instead.
-- Check `backlog/*.md` + `BACKLOG.md`/`DONE.md` for an existing item covering the same
-  thing — enrich it rather than duplicate.
+- Check `backlog/*.md` + `backlog/archive/*.md` (closed items are moved into the archive by
+  `npm run backlog:archive`, so the live glob alone misses them) + `BACKLOG.md`/`DONE.md`
+  for an existing item covering the same thing — enrich it rather than duplicate.
 - Check `decisions/` for ADRs that explain why the current state is intentional (if one
   does, say so in the body — the item may be a supersede-proposal, not a defect).
 
 ### 3. Create the item file
-Allocate the next id: highest existing `backlog/BL-XXXX-*.md` number + 1. Write
-`backlog/BL-00NN-<slug>.md`:
+Allocate the id with the allocator — never by scanning `backlog/BL-XXXX-*.md` for the highest
+number. That scan races when two sessions file an item at the same moment, and it misses the
+closed items sitting in `backlog/archive/`, so it can hand out an id that is already taken:
+
+```
+npm run backlog:next-id -- <slug>
+```
+
+It prints `BL-00NN<tab><path>` and creates that file, empty. Write your content into the
+path it printed; do not rename it. For several items at once, pass every slug in one call
+(`npm run backlog:next-id -- slug-one slug-two`) and you get a contiguous block back.
+
+The file takes this frontmatter:
 
 ```yaml
 ---
-id: BL-00NN
+id: <the id the allocator printed>
 title: <short imperative title>
 type: bug              # bug | debt | problem | retire
 status: idea

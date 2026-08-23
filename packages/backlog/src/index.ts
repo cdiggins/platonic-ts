@@ -125,7 +125,14 @@ const statusOrder: Record<BacklogStatus, number> = {
 
 const priorityOrder: Record<BacklogPriority, number> = { p1: 0, p2: 1, p3: 2, '?': 3 }
 
-export const loadBacklog = async (dir: string): Promise<readonly BacklogItem[]> => {
+// Closed items are moved here by `npm run backlog:archive` so that `backlog/`
+// itself only holds live work. The archive is not a different format: files
+// keep their frontmatter and are loaded as ordinary items, so every consumer
+// (regen, dashboard, id checks) sees the whole item set and nothing can
+// silently disappear — or have its id handed out twice.
+export const archiveDirName = 'archive'
+
+const loadItemsFrom = async (dir: string): Promise<readonly BacklogItem[]> => {
   const files = await readdir(dir).catch(() => [] as string[])
   const parsed = await Promise.all(
     files
@@ -136,13 +143,23 @@ export const loadBacklog = async (dir: string): Promise<readonly BacklogItem[]> 
           .catch(() => undefined),
       ),
   )
-  return parsed
-    .filter((item): item is BacklogItem => item !== undefined)
-    .sort(
-      (a, b) =>
-        statusOrder[a.status] - statusOrder[b.status] ||
-        priorityOrder[a.priority] - priorityOrder[b.priority],
-    )
+  return parsed.filter((item): item is BacklogItem => item !== undefined)
+}
+
+export const loadBacklog = async (dir: string): Promise<readonly BacklogItem[]> => {
+  const [live, archived] = await Promise.all([
+    loadItemsFrom(dir),
+    loadItemsFrom(`${dir}/${archiveDirName}`),
+  ])
+  // Filename breaks ties so ordering depends on the item, not on which of the
+  // two directories it happens to sit in — moving a file must not reshuffle
+  // any generated view.
+  return [...live, ...archived].sort(
+    (a, b) =>
+      statusOrder[a.status] - statusOrder[b.status] ||
+      priorityOrder[a.priority] - priorityOrder[b.priority] ||
+      basename(a.file).localeCompare(basename(b.file)),
+  )
 }
 
 export const renderBacklogItem = (item: BacklogItem): string => {
@@ -212,3 +229,17 @@ export const buildDoneLog = (items: readonly BacklogItem[]): string => {
   ]
   return `${lines.join('\n')}\n`
 }
+
+export {
+  backlogIdNumber,
+  formatBacklogId,
+  formatMarkerName,
+  markerNumber,
+  markerNumbers,
+  firstFreeNumber,
+  usedNumbers,
+  validateBacklogIds,
+  type BacklogFileInfo,
+  type BacklogIdIssue,
+  type BacklogIdIssueKind,
+} from './ids.ts'

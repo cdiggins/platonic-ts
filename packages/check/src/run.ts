@@ -1,6 +1,6 @@
-// The `platonic check` runner: typecheck -> lint -> ratchet -> tests, stopping
-// at first failure. Subprocess steps use node:child_process spawn with
-// shell:true (Windows needs a shell to resolve npx); timing uses
+// The `platonic check` runner: typecheck -> lint -> ratchet -> tests ->
+// backlog ids, stopping at first failure. Subprocess steps use spawn with
+// node:child_process and shell:true (Windows needs a shell to resolve npx); timing uses
 // process.hrtime.bigint() rather than Date.now() (project convention:
 // ambient Date.now() is banned outside composition roots — see
 // eslint.config.js purityBans — process.hrtime is not, and is monotonic,
@@ -10,7 +10,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { compareToBaseline, type RatchetCounts } from './ratchet.ts'
 import { scanRepo } from './scan.ts'
 
-export type StepName = 'typecheck' | 'lint' | 'ratchet' | 'tests'
+export type StepName = 'typecheck' | 'lint' | 'ratchet' | 'tests' | 'backlog'
 
 export type CheckStepResult = {
   readonly name: StepName
@@ -111,8 +111,12 @@ const summarizeCommand = (name: StepName, ok: boolean, stdout: string, stderr: s
   return firstErrorLine(`${stdout}\n${stderr}`)
 }
 
-const commandFor = (name: 'typecheck' | 'lint' | 'tests'): string =>
-  name === 'typecheck' ? 'npx tsc --noEmit' : name === 'lint' ? 'npx eslint .' : 'npx vitest run'
+const commands: Readonly<Record<Exclude<StepName, 'ratchet'>, string>> = {
+  typecheck: 'npx tsc --noEmit',
+  lint: 'npx eslint .',
+  tests: 'npx vitest run',
+  backlog: 'npx tsx packages/backlog/src/main.ts validate',
+}
 
 const runStep = async (
   name: StepName,
@@ -130,7 +134,7 @@ const runStep = async (
     return { name, ok, durationMs, detail }
   }
 
-  const result = await runCommand(commandFor(name), repoDir)
+  const result = await runCommand(commands[name], repoDir)
   const ok = result.code === 0
   return {
     name,
@@ -140,7 +144,7 @@ const runStep = async (
   }
 }
 
-const defaultSteps: readonly StepName[] = ['typecheck', 'lint', 'ratchet', 'tests']
+const defaultSteps: readonly StepName[] = ['typecheck', 'lint', 'ratchet', 'tests', 'backlog']
 
 export const runCheck = async (options: {
   readonly repoDir: string

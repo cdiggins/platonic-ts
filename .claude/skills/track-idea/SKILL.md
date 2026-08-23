@@ -26,9 +26,11 @@ the item body.
 
 ### 2. Find related work (before writing anything)
 Search for prior art and overlaps — link, don't duplicate:
-- `Grep` over `backlog/*.md` and `backlog/BACKLOG.md`/`backlog/DONE.md` for keywords and
-  synonyms. If an existing item already covers the idea, say so and offer to enrich that
-  item instead of creating a new one.
+- `Grep` over `backlog/*.md` **and `backlog/archive/*.md`** (closed items are moved there by
+  `npm run backlog:archive`, so a plain `backlog/*.md` glob no longer sees the whole item
+  set) plus `backlog/BACKLOG.md`/`backlog/DONE.md` for keywords and synonyms. If an existing
+  item already covers the idea, say so and offer to enrich that item instead of creating a
+  new one.
 - `Grep` over `NOTES.md`, `docs/`, and any other discussion folders for related plans,
   assessments, idea banks.
 - Check `decisions/` for ADRs that constrain the direction.
@@ -36,13 +38,23 @@ Search for prior art and overlaps — link, don't duplicate:
 Collect repo-relative paths and item ids for the `links:` field.
 
 ### 3. Create the item file
-Allocate the next id: highest existing `backlog/BL-XXXX-*.md` number + 1, zero-padded to 4
-digits (e.g. current highest is `BL-0009` → next is `BL-0010`). Write
-`backlog/BL-00NN-<slug>.md`:
+Allocate the id with the allocator — never by scanning `backlog/BL-XXXX-*.md` for the highest
+number. That scan races when two sessions file an item at the same moment, and it misses the
+closed items sitting in `backlog/archive/`, so it can hand out an id that is already taken:
+
+```
+npm run backlog:next-id -- <slug>
+```
+
+It prints `BL-00NN<tab><path>` and creates that file, empty. Write your content into the
+path it printed; do not rename it. For several items at once, pass every slug in one call
+(`npm run backlog:next-id -- slug-one slug-two`) and you get a contiguous block back.
+
+The file takes this frontmatter:
 
 ```yaml
 ---
-id: BL-00NN
+id: <the id the allocator printed>
 title: <short imperative title>
 type: idea            # idea | feature | problem | debt (idea for anything not yet scoped)
 status: idea
