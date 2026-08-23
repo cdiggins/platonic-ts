@@ -247,7 +247,8 @@ export type Table = {
   readonly notes: readonly string[]
 }
 
-// Rough heuristic for estimating tokens from byte counts: 1 token ≈ 4 bytes of UTF-8 text.
+// Rough prose-to-token estimate. Exact bytes are always shown alongside; this is a
+// planning aid, not billing truth.
 export const BYTES_PER_TOKEN = 4
 // Estimates tokens from byte count using BYTES_PER_TOKEN.
 export const estTokens = (bytes: number): number => Math.round(bytes / BYTES_PER_TOKEN)
