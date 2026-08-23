@@ -1,25 +1,17 @@
-// The tools that measure and review rather than change: how bad is this
-// declaration, where are the escape hatches, is this symbol safe to delete, and
-// what actually changed since a known-good snapshot. All pure over `Workspace`.
+// The tools that measure rather than change: how bad is this declaration, and
+// where are the escape hatches. Both pure over `Workspace`.
 //
 // Nothing here counts anything the rest of the repository already counts:
 // metrics come from `packages/codemap/src/metrics.ts` and the escape-hatch
 // classification is the one `packages/check/src/ratchet.ts` uses, so the MCP
 // server and `platonic check` can never disagree about what a hatch is.
 //
-// PS-056: this file is over PS-024's 300-line budget. Four unrelated tools were
-// assigned to one file by the Wave 5 fence table, and splitting them is the
-// supervisor's call at integration — `symbol_diff` and `escape_hatch_index` in
-// particular share nothing but the workspace. The natural split is one module
-// per tool, or `inspect.ts` (metrics + hatches) beside `diff.ts` (delete + diff).
 import ts from 'typescript'
 import type { CodeMetrics, SymbolInfo } from '../../core/src/index.ts'
 import { fileMetrics, functionMetrics } from '../../codemap/src/metrics.ts'
-import { extractSymbols } from '../../codemap/src/symbols.ts'
 import { compareToBaseline, type RatchetCounts } from '../../check/src/ratchet.ts'
-import { declarationRange, declarationText } from './declaration.ts'
+import { declarationText } from './declaration.ts'
 import { explainLookup, type ToolOutput } from './query.ts'
-import type { EditPlan } from './edit.ts'
 import { lineTextAt, resolveSymbol, sourceOf, type Workspace } from './workspace.ts'
 
 const parse = (name: string, text: string): ts.SourceFile =>
@@ -30,9 +22,6 @@ const tsFilesOf = (workspace: Workspace, folder: string | undefined): readonly s
     .filter((file) => file.endsWith('.ts'))
     .filter((file) => folder === undefined || file === folder || file.startsWith(`${folder}/`))
     .sort()
-
-const symbolsOfFile = (workspace: Workspace, file: string): readonly SymbolInfo[] =>
-  workspace.index.symbols.filter((symbol) => symbol.file.toLowerCase() === file.toLowerCase())
 
 // --- symbol_metrics: is this declaration worth refactoring? ---------------
 
@@ -244,209 +233,6 @@ export const escapeHatchIndex = (workspace: Workspace, folder: string | undefine
           ),
         ),
       )
-      .join('\n'),
-  }
-}
-
-// --- delete_symbol: remove a declaration, or explain why that is unsafe ----
-
-const moduleBase = (specifier: string): string =>
-  specifier.replace(/['"]/g, '').split('/').slice(-1)[0]?.replace(/\.(ts|tsx|js|mjs)$/, '') ?? ''
-
-const reExportsName = (statement: ts.Statement, name: string, from: string): boolean =>
-  ts.isExportDeclaration(statement) &&
-  statement.moduleSpecifier !== undefined &&
-  (statement.exportClause === undefined
-    ? moduleBase(statement.moduleSpecifier.getText()) === moduleBase(from)
-    : ts.isNamedExports(statement.exportClause) &&
-      statement.exportClause.elements.some(
-        (element) => (element.propertyName ?? element.name).text === name,
-      ))
-
-const barrelsFor = (workspace: Workspace, name: string, from: string): readonly string[] =>
-  [...workspace.sources]
-    .filter(([file]) => file !== from)
-    .filter(([, sourceFile]) =>
-      sourceFile.statements.some((statement) => reExportsName(statement, name, from)),
-    )
-    .map(([file]) => file)
-    .sort()
-
-const usesOutside = (
-  workspace: Workspace,
-  symbol: SymbolInfo,
-  start: number,
-  end: number,
-): readonly string[] =>
-  workspace.index.references
-    .filter((reference) => reference.symbolId === symbol.id)
-    .filter(
-      (reference) =>
-        reference.file !== symbol.file ||
-        reference.span.start < start ||
-        reference.span.start >= end,
-    )
-    .slice()
-    .sort((left, right) =>
-      left.file === right.file ? left.line - right.line : left.file < right.file ? -1 : 1,
-    )
-    .map((reference) => {
-      const source = sourceOf(workspace, reference.file)
-      const context = source === undefined ? '' : lineTextAt(source, reference.span.start)
-      return `${reference.file}:${reference.line} ${context}`
-    })
-
-// The declaration plus the blank line it would otherwise leave behind: at most
-// the newline that ends its last line and the empty line after it.
-const trailingGap = (text: string, end: number): number =>
-  /^(?:[ \t]*\r?\n){1,2}/.exec(text.slice(end))?.[0].length ?? 0
-
-export const deleteSymbol = (
-  workspace: Workspace,
-  name: string,
-  file: string | undefined,
-): EditPlan => {
-  const lookup = resolveSymbol(workspace, name, file)
-  if (!lookup.ok) return { ok: false, text: explainLookup(name, lookup).text }
-  const range = declarationRange(lookup.sourceFile, lookup.symbol)
-  if (range === undefined) return { ok: false, text: `${name} has no declaration range.` }
-  const barrels = barrelsFor(workspace, name, lookup.symbol.file)
-  if (barrels.length > 0)
-    return {
-      ok: false,
-      text: `${name} is re-exported from ${barrels.join(', ')}; deleting it would leave a broken re-export. Remove the re-export first.`,
-    }
-  const uses = usesOutside(workspace, lookup.symbol, range.start, range.end)
-  if (uses.length > 0)
-    return {
-      ok: false,
-      text: [`${name} is still used in ${uses.length} places; remove them first:`]
-        .concat(uses)
-        .join('\n'),
-    }
-  const end = range.end + trailingGap(lookup.sourceFile.text, range.end)
-  const removed = lookup.sourceFile.text.slice(range.start, range.end).split('\n').length
-  return {
-    ok: true,
-    edits: [{ file: lookup.symbol.file, start: range.start, end, text: '' }],
-    summary: `${lookup.symbol.file}:${lookup.symbol.line} — deleted ${name} (${removed} lines)`,
-  }
-}
-
-// --- symbol_diff: what changed, by declaration rather than by line --------
-
-type Decl = {
-  readonly file: string
-  readonly name: string
-  readonly line: number
-  readonly text: string
-}
-
-const keyOf = (decl: Decl): string => `${decl.file} ${decl.name}`
-
-const normalize = (text: string): string => text.split('\r\n').join('\n').trim()
-
-const declsOf = (
-  file: string,
-  sourceFile: ts.SourceFile,
-  symbols: readonly SymbolInfo[],
-): readonly Decl[] =>
-  symbols
-    .filter((symbol) => symbol.containerName === undefined)
-    .flatMap((symbol) => {
-      const text = declarationText(sourceFile, symbol)
-      return text === undefined
-        ? []
-        : [{ file, name: symbol.name, line: symbol.line, text: normalize(text) }]
-    })
-
-const afterDeclsOf = (workspace: Workspace): readonly Decl[] =>
-  tsFilesOf(workspace, undefined).flatMap((file) => {
-    const sourceFile = sourceOf(workspace, file)
-    return sourceFile === undefined ? [] : declsOf(file, sourceFile, symbolsOfFile(workspace, file))
-  })
-
-const beforeDeclsOf = (workspace: Workspace, before: ReadonlyMap<string, string>): readonly Decl[] =>
-  [...before].flatMap(([file, text]) => {
-    const sourceFile = parse(`${workspace.index.root}/${file}`, text)
-    return declsOf(file, sourceFile, extractSymbols(workspace.index.root, sourceFile))
-  })
-
-type Move = {
-  readonly added: Decl
-  readonly removed: Decl
-}
-
-// A move is the same name with byte-identical text in a different file. Matched
-// greedily and at most once each, so a declaration copied into two files shows
-// as one move and one addition rather than two moves.
-const movesOf = (added: readonly Decl[], removed: readonly Decl[]): readonly Move[] =>
-  added.reduce<readonly Move[]>((moves, candidate) => {
-    const taken = new Set(moves.map((move) => keyOf(move.removed)))
-    const match = removed.find(
-      (gone) =>
-        gone.name === candidate.name &&
-        gone.text === candidate.text &&
-        gone.file !== candidate.file &&
-        !taken.has(keyOf(gone)),
-    )
-    return match === undefined ? moves : [...moves, { added: candidate, removed: match }]
-  }, [])
-
-export const symbolDiff = (
-  workspace: Workspace,
-  before: ReadonlyMap<string, string>,
-): ToolOutput => {
-  const beforeDecls = beforeDeclsOf(workspace, before)
-  const afterDecls = afterDeclsOf(workspace)
-  const beforeByKey = new Map(beforeDecls.map((decl) => [keyOf(decl), decl]))
-  const afterByKey = new Map(afterDecls.map((decl) => [keyOf(decl), decl]))
-  const addedFiles = [...new Set(afterDecls.map((decl) => decl.file))].filter(
-    (file) => !before.has(file),
-  )
-  const removedFiles = [...before.keys()].filter((file) => !workspace.sources.has(file))
-  const added = afterDecls.filter((decl) => !beforeByKey.has(keyOf(decl)))
-  const removed = beforeDecls.filter((decl) => !afterByKey.has(keyOf(decl)))
-  const changed = afterDecls.filter((decl) => {
-    const was = beforeByKey.get(keyOf(decl))
-    return was !== undefined && was.text !== decl.text
-  })
-  const moves = movesOf(added, removed)
-  const movedAdded = new Set(moves.map((move) => keyOf(move.added)))
-  const movedRemoved = new Set(moves.map((move) => keyOf(move.removed)))
-  const plainAdded = added.filter(
-    (decl) => !movedAdded.has(keyOf(decl)) && !addedFiles.includes(decl.file),
-  )
-  const plainRemoved = removed.filter(
-    (decl) => !movedRemoved.has(keyOf(decl)) && !removedFiles.includes(decl.file),
-  )
-  const files = new Set([...before.keys(), ...afterDecls.map((decl) => decl.file)])
-  return {
-    ok: true,
-    text: [
-      `${files.size} files compared — ${addedFiles.length} added, ${removedFiles.length} removed; declarations: ${plainAdded.length} added, ${plainRemoved.length} removed, ${changed.length} changed, ${moves.length} moved`,
-    ]
-      .concat(
-        addedFiles.map(
-          (file) =>
-            `added file: ${file} (${afterDecls.filter((decl) => decl.file === file).length} declarations)`,
-        ),
-      )
-      .concat(
-        removedFiles.map(
-          (file) =>
-            `removed file: ${file} (${beforeDecls.filter((decl) => decl.file === file).length} declarations)`,
-        ),
-      )
-      .concat(
-        moves.map(
-          (move) =>
-            `moved: ${move.added.name} — ${move.removed.file}:${move.removed.line} -> ${move.added.file}:${move.added.line}`,
-        ),
-      )
-      .concat(changed.map((decl) => `changed: ${decl.file}:${decl.line} ${decl.name}`))
-      .concat(plainAdded.map((decl) => `added: ${decl.file}:${decl.line} ${decl.name}`))
-      .concat(plainRemoved.map((decl) => `removed: ${decl.file}:${decl.line} ${decl.name}`))
       .join('\n'),
   }
 }

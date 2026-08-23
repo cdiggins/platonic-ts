@@ -18,6 +18,34 @@ export type EditPlan =
 
 const declined = (text: string): EditPlan => ({ ok: false, text })
 
+// Half-open ranges, so an edit that ends where the next begins is fine. Two
+// insertions at one offset are not: both are empty ranges at the same point and
+// nothing in the plan says which text comes first.
+const collides = (left: FileEdit, right: FileEdit): boolean =>
+  (left.start < right.end && right.start < left.end) ||
+  (left.start === right.start && left.start === left.end && right.start === right.end)
+
+const byRange = (left: FileEdit, right: FileEdit): number =>
+  left.start === right.start ? left.end - right.end : left.start - right.start
+
+const collisionsIn = (file: string, edits: readonly FileEdit[]): readonly string[] => {
+  const ordered = edits.slice().sort(byRange)
+  return ordered.flatMap((left, index) =>
+    ordered
+      .slice(index + 1)
+      .filter((right) => collides(left, right))
+      .map((right) => `${file}: ${left.start}-${left.end} overlaps ${right.start}-${right.end}`),
+  )
+}
+
+// The rule lives here because `applyEdits` is where breaking it does its damage:
+// edits are applied back to front, so an edit whose range contains another lands
+// second and overwrites it, carrying the text the first edit already replaced.
+// Nothing about that failure is visible in the result — the file is simply
+// wrong. Every write path checks this before applying.
+export const overlapping = (edits: readonly FileEdit[]): readonly string[] =>
+  [...editsByFile(edits).entries()].flatMap(([file, grouped]) => collisionsIn(file, grouped))
+
 // Applied back to front so that earlier offsets stay valid.
 export const applyEdits = (text: string, edits: readonly FileEdit[]): string =>
   edits

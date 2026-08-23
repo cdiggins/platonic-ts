@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { combinePlans, overlapping } from '../src/batch.ts'
+import { combinePlans } from '../src/batch.ts'
+import { overlapping } from '../src/edit.ts'
 import type { EditPlan, FileEdit } from '../src/edit.ts'
 
 const edit = (file: string, start: number, end: number, text: string): FileEdit => ({

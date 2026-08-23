@@ -19,7 +19,7 @@ import {
   type IndexSession,
   type RepoWatch,
 } from '../../codemap/src/index.ts'
-import { applyEdits, editsByFile, type FileEdit } from './edit.ts'
+import { applyEdits, editsByFile, overlapping, type FileEdit } from './edit.ts'
 import { createCompiler, type Compiler } from './compiler.ts'
 import type { Workspace } from './workspace.ts'
 
@@ -153,11 +153,22 @@ const writeFileEdits = async (
   return undefined
 }
 
+// The overlap check is here rather than in each tool because this is the only
+// way to disk. Two edits whose ranges nest are applied back to front, so the
+// outer one lands second and overwrites the inner one with the text it already
+// replaced — a corrupted file and no error anywhere. Refusing costs a round
+// trip; not refusing costs the file.
 export const writeEdits = async (
   repoDir: string,
   workspace: Workspace,
   edits: readonly FileEdit[],
 ): Promise<WriteResult> => {
+  const collisions = overlapping(edits)
+  if (collisions.length > 0)
+    return {
+      ok: false,
+      text: [`${collisions.length} overlapping edits; nothing written:`, ...collisions].join('\n'),
+    }
   const grouped = [...editsByFile(edits).entries()]
   const problems = await Promise.all(
     grouped.map(([file, fileEdits]) => writeFileEdits(repoDir, workspace, file, fileEdits)),

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { deleteSymbol, escapeHatchIndex, symbolDiff, symbolMetrics } from '../src/inspect.ts'
+import { escapeHatchIndex, symbolMetrics } from '../src/inspect.ts'
+import { deleteSymbol, symbolDiff } from '../src/review.ts'
 import { applyEdits } from '../src/edit.ts'
 import { sourceOf } from '../src/workspace.ts'
 import { workspaceOf } from './fixture.ts'
