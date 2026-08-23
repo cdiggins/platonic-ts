@@ -5,8 +5,9 @@
 // was built with, because nothing outside symbol resolution needs a checker and
 // a second program costs seconds. The offsets still line up: both readings come
 // from the same bytes, and both are re-read when a file changes.
-import { readFile, writeFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
+import { execFile } from 'node:child_process'
 import ts from 'typescript'
 import { collectSourceFiles } from '../../check/src/scan.ts'
 import {
@@ -21,6 +22,7 @@ import {
 } from '../../codemap/src/index.ts'
 import { applyEdits, editsByFile, overlapping, type FileEdit } from './edit.ts'
 import { createCompiler, type Compiler } from './compiler.ts'
+import { snapshotOfWorkspace, type Snapshot } from './checkpoint.ts'
 import type { Workspace } from './workspace.ts'
 
 export type WriteResult =
@@ -41,8 +43,22 @@ type OpenRepo = {
 
 let current: OpenRepo | undefined
 
-const sourcePaths = async (repoDir: string): Promise<readonly string[]> =>
-  (await collectSourceFiles(repoDir)).map((path) => toRepoRelative(repoDir, path))
+// Git is read, never written: `symbol_diff` needs the previous text and
+// nothing here changes history.
+const runGit = (repoDir: string, args: readonly string[]): Promise<string | undefined> =>
+  new Promise((resolveWith) => {
+    execFile('git', [...args], { cwd: repoDir, maxBuffer: 1 << 24 }, (error, stdout) =>
+      resolveWith(error === null ? stdout : undefined),
+    )
+  })
+
+// `ratchet.json` is not source and is not indexed, but `escape_hatch_index`
+// needs its baseline and the tools that walk the workspace all filter to `.ts`,
+// so carrying its text here costs nothing and saves a second file reader.
+const sourcePaths = async (repoDir: string): Promise<readonly string[]> => [
+  ...(await collectSourceFiles(repoDir)).map((path) => toRepoRelative(repoDir, path)),
+  'ratchet.json',
+]
 
 // Unreadable files are dropped rather than defaulted to empty: a deleted file
 // should leave the workspace, not sit in it as an empty one.
@@ -186,4 +202,59 @@ export const loadCompiler = async (repoDir: string): Promise<Compiler> => {
   const workspace = await loadWorkspace(repoDir)
   const texts = new Map([...workspace.sources].map(([file, source]) => [file, source.text]))
   return createCompiler(repoDir, texts, workspace)
+}
+
+// Snapshots live here because `checkpoint` and `revert` are two calls: the
+// value has to outlive the first one. Bounded, because a snapshot is a full
+// copy of every indexed source text.
+const snapshotLimit = 10
+
+let snapshots: readonly Snapshot[] = []
+
+export const takeCheckpoint = (workspace: Workspace, label: string, takenAt: number): Snapshot => {
+  const snapshot = snapshotOfWorkspace(workspace, label, takenAt)
+  snapshots = [snapshot, ...snapshots.filter((held) => held.label !== label)].slice(0, snapshotLimit)
+  return snapshot
+}
+
+// No label means the most recent one, which is what a caller undoing the thing
+// they just did means every time.
+export const heldSnapshot = (label: string | undefined): Snapshot | undefined =>
+  label === undefined ? snapshots[0] : snapshots.find((held) => held.label === label)
+
+export const heldLabels = (): readonly string[] => snapshots.map((snapshot) => snapshot.label)
+
+export const textsOf = (workspace: Workspace): ReadonlyMap<string, string> =>
+  new Map([...workspace.sources].map(([file, source]) => [file, source.text]))
+
+// What the working tree looked like at the last commit, for `symbol_diff`. Only
+// the files the workspace indexes are read: anything else would show up as a
+// removal.
+export const loadHeadTexts = async (
+  repoDir: string,
+  workspace: Workspace,
+): Promise<ReadonlyMap<string, string>> => {
+  const entries = await Promise.all(
+    [...workspace.sources.keys()].map(async (file) => {
+      const text = await runGit(repoDir, ['show', `HEAD:${file}`])
+      return text === undefined ? [] : [[file, text] as const]
+    }),
+  )
+  return new Map(entries.flat())
+}
+
+// The filesystem half of `rename_file`: the edit plan rewrites the importers,
+// and the file itself still has to move.
+export const moveFile = async (
+  repoDir: string,
+  from: string,
+  to: string,
+): Promise<string | undefined> => {
+  const target = resolve(repoDir, to)
+  const problem = await mkdir(dirname(target), { recursive: true })
+    .then(() => rename(resolve(repoDir, from), target))
+    .then(() => undefined)
+    .catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
+  if (problem === undefined) markChanged([from, to])
+  return problem
 }
