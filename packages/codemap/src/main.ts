@@ -5,11 +5,20 @@
 //
 // Both take --json for the same numbers as data. `clones` also takes --min-nodes N,
 // --min-count N, --abstract-literals, --keep-subsumed, and --zone core|root|test|all.
-import { resolve } from 'node:path'
+//
+//   npm run clones -- --extract 3 --name countActive
+//
+// prints what extracting the third group would do: the declaration, every call site, and
+// anything that would stop it compiling. --into <file> chooses where the declaration lands,
+// and --write applies the plan, all files or none.
+import { writeFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import ts from 'typescript'
 import { defaultCloneOptions, repeatedExpressions, type CloneOptions } from './clones.ts'
+import { applyEdits, editedFiles } from './edits.ts'
+import { defaultExtractOptions, extractionPlan, type ExtractionPlan } from './extract.ts'
 import { openSession } from './io.ts'
-import { formatCloneReport, formatSizeReport } from './report.ts'
+import { formatCloneReport, formatExtractionPlan, formatSizeReport } from './report.ts'
 import { sizeReport, zoneOf, type SourceEntry, type Zone } from './stats.ts'
 import { toRepoRelative } from './symbols.ts'
 
@@ -39,6 +48,37 @@ const zoneFlag = (): Zone | 'all' => {
   return raw === 'core' || raw === 'root' || raw === 'test' ? raw : 'all'
 }
 
+const textFlag = (name: string, fallback: string): string => {
+  const index = process.argv.indexOf(name)
+  const raw = index < 0 ? undefined : process.argv[index + 1]
+  return raw === undefined || raw.startsWith('--') ? fallback : raw
+}
+
+// All files or none: a half-applied plan leaves the repository in a state neither the old
+// code nor the new one, and the edits were computed against the text the program parsed.
+const writePlan = async (
+  repo: string,
+  plan: ExtractionPlan,
+  entries: readonly SourceEntry[],
+): Promise<readonly string[]> => {
+  const rewritten = editedFiles(plan.edits).map((file) => {
+    const entry = entries.find((candidate) => candidate.file === file)
+    const applied =
+      entry === undefined
+        ? { ok: false as const, reason: 'out-of-range' as const }
+        : applyEdits(plan.edits, file, entry.sourceFile.text)
+    return { file, applied }
+  })
+  const failed = rewritten.filter(({ applied }) => !applied.ok).map(({ file }) => file)
+  if (failed.length > 0) return failed
+  await Promise.all(
+    rewritten.map(({ file, applied }) =>
+      applied.ok ? writeFile(join(repo, file), applied.text, 'utf8') : Promise.resolve(),
+    ),
+  )
+  return []
+}
+
 const cloneOptions = (): CloneOptions => ({
   minNodes: numberFlag('--min-nodes', defaultCloneOptions.minNodes),
   minOccurrences: numberFlag('--min-count', defaultCloneOptions.minOccurrences),
@@ -59,7 +99,31 @@ const main = async (): Promise<void> => {
     const zone = zoneFlag()
     const inZone = entries.filter((entry) => zone === 'all' || zoneOf(entry.file) === zone)
     const groups = repeatedExpressions(inZone, cloneOptions())
-    console.log(asJson ? JSON.stringify(groups, undefined, 2) : formatCloneReport(groups))
+    const rank = numberFlag('--extract', 0)
+    if (rank < 1) {
+      console.log(asJson ? JSON.stringify(groups, undefined, 2) : formatCloneReport(groups))
+      return
+    }
+    const group = groups[rank - 1]
+    if (group === undefined) {
+      console.log(`no group #${rank}: ${groups.length} shape(s) repeat under these settings`)
+      return
+    }
+    const plan = extractionPlan(group, inZone, {
+      ...defaultExtractOptions,
+      name: textFlag('--name', 'extracted'),
+      destination: hasFlag('--into') ? textFlag('--into', '') : undefined,
+      checker: session.program.getTypeChecker(),
+    })
+    console.log(asJson ? JSON.stringify(plan, undefined, 2) : formatExtractionPlan(plan))
+    if (hasFlag('--write') && plan.blockers.length === 0) {
+      const failed = await writePlan(repoDir, plan, inZone)
+      console.log(
+        failed.length === 0
+          ? `\nwrote ${editedFiles(plan.edits).length} file(s)`
+          : `\nwrote nothing: the edits no longer fit ${failed.join(', ')}`,
+      )
+    }
     return
   }
   const report = sizeReport(typescriptFiles, entries)

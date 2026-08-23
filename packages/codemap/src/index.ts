@@ -29,7 +29,7 @@ export {
   type SizeReport,
   type SourceEntry,
 } from './stats.ts'
-export { formatSizeReport, formatCloneReport } from './report.ts'
+export { formatSizeReport, formatCloneReport, formatExtractionPlan } from './report.ts'
 export {
   expressionShape,
   sameShape,
@@ -48,3 +48,29 @@ export {
   type ShapeGroup,
   type CloneOptions,
 } from './clones.ts'
+export { spliceText, applyEdits, editsFor, editedFiles, type Splice, type TextEdit, type SpliceResult } from './edits.ts'
+export {
+  fileScope,
+  resolutionOf,
+  globalNames,
+  globalTypeNames,
+  type FileScope,
+  type Resolution,
+} from './scope.ts'
+export {
+  siteOf,
+  unsafeReasons,
+  awaitsDirectly,
+  isFunctionValued,
+  typeNames,
+  type Site,
+} from './sites.ts'
+export { splitHoles, type ExtractedParameter, type HoleSplit } from './holes.ts'
+export { functionSource, callSource, relativeImport, type ExtractedForm } from './rewrite.ts'
+export {
+  extractionPlan,
+  defaultExtractOptions,
+  type ExtractOptions,
+  type ExtractionPlan,
+} from './extract.ts'
+export { declarationEdit, importEdits, placementBlockers, type ExtractionNote } from './placement.ts'

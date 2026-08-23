@@ -1,6 +1,8 @@
 // Rendering this package's reports as fixed-width text. Presentation only: the numbers are
 // decided in `stats.ts` and `clones.ts`, and this module never computes one.
 import type { ExpressionOccurrence, ShapeGroup } from './clones.ts'
+import type { ExtractionPlan } from './extract.ts'
+import type { ExtractionNote } from './placement.ts'
 import type { PopulationName, PopulationReport, SizeReport, ZoneSummary } from './stats.ts'
 import type { Summary } from './summary.ts'
 
@@ -120,6 +122,42 @@ const groupBlock = (group: ShapeGroup, rank: number): readonly string[] => [
   ...group.occurrences.map(occurrenceLine),
   '',
 ]
+
+// ---------------------------------------------------------------------------
+// An extraction plan.
+// ---------------------------------------------------------------------------
+
+const noteLine = (note: ExtractionNote): string => {
+  const where = note.file === undefined ? '' : ` (${note.file}${note.line === undefined ? '' : `:${note.line}`})`
+  return `  - ${note.message}${where}`
+}
+
+const siteLines = (plan: ExtractionPlan): readonly string[] =>
+  plan.edits
+    .filter((edit) => edit.end > edit.start)
+    .map((edit) => `  ${edit.file}  ->  ${oneLine(edit.text, 80)}`)
+
+const blockedReport = (plan: ExtractionPlan): string =>
+  [`\`${plan.name}\` cannot be extracted:`, ...plan.blockers.map(noteLine)].join('\n')
+
+export const formatExtractionPlan = (plan: ExtractionPlan): string => {
+  if (plan.blockers.length > 0) return blockedReport(plan)
+  const kept = plan.kept.length === 0 ? 'nothing' : plan.kept.join(', ')
+  return [
+    `extract as \`${plan.name}\` into ${plan.destination} (${plan.form} form)`,
+    `reads without being passed: ${kept}`,
+    '',
+    plan.declaration,
+    '',
+    `${siteLines(plan).length} call site(s)`,
+    ...siteLines(plan),
+    ...(plan.requirements.length === 0
+      ? []
+      : ['', 'before this compiles', ...plan.requirements.map(noteLine)]),
+  ]
+    .join('\n')
+    .trimEnd()
+}
 
 export const formatCloneReport = (groups: readonly ShapeGroup[]): string =>
   (groups.length === 0

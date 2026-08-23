@@ -12,6 +12,7 @@ npm run check       # typecheck -> lint -> ratchet -> tests -> backlog ids, in o
 npm run dashboard   # observability server on http://localhost:4747
 npm run mcp         # MCP server on stdio; registered for this repo in .mcp.json
 npm run stats       # size distributions of this repo's functions, statements, expressions
+npm run clones      # expressions repeated under different names; --extract N plans the function
 ```
 
 Ratchet counts escape hatches (`any`, `as`, `!`, `@ts-` and eslint-disable comments) under
@@ -24,7 +25,7 @@ Ratchet counts escape hatches (`any`, `as`, `!`, `@ts-` and eslint-disable comme
 | `packages/core` | Shared types + pure helpers. Supervisor-owned contract — change carefully. |
 | `packages/transcripts` | Parse/tail Claude Code transcript JSONL into `AgentActivity`; usage aggregation. |
 | `packages/backlog` | Parse/render/load backlog markdown items in `backlog/`; allocates `BL-NNNN` ids (`npm run backlog:next-id -- <slug>`) and validates them (`npm run backlog:validate`). Never pick an id by scanning for the highest number — see `docs/backlog-id-allocation-2026-08-23.md`. |
-| `packages/codemap` | Builds a `CodeIndex` of the repo: symbols, references, quality metrics. Pure; IO in `src/io.ts`; change detection in `src/watch.ts`. `openSession`/`updateSession` rebuild only what changed. `npm run stats` reports size distributions by zone; `npm run clones` reports expressions that repeat under different names (`shapes.ts` normalizes one expression, `clones.ts` groups them). |
+| `packages/codemap` | Builds a `CodeIndex` of the repo: symbols, references, quality metrics. Pure; IO in `src/io.ts`; change detection in `src/watch.ts`. `openSession`/`updateSession` rebuild only what changed. `npm run stats` reports size distributions by zone; `npm run clones` reports expressions that repeat under different names, and `npm run clones -- --extract N` turns one group into a function and a call at each site (`--write` applies it). Pipeline: `shapes.ts` normalizes one expression, `clones.ts` groups them, `sites.ts`/`holes.ts`/`placement.ts` decide what is safe and what becomes a parameter, `extract.ts` assembles the plan, `edits.ts` applies it. |
 | `packages/codeview` | Code overview browser (BL-0016) on port 4848 — source, navigation, metrics, readmes, feedback box. |
 | `packages/dashboard` | HTTP + SSE server and single-page UI; composition in `src/main.ts`. Agent observability only — transcripts, usage, backlog, docs. Source browsing, symbol navigation, and code metrics/quality scoring are out of scope and belong to a separate app; do not add them here (see `docs/tools-and-process.md`). |
 | `packages/mcp` | MCP server (BL-0026) over the code index: 33 tools — outlines, declarations, type-checked references, inferred types, diagnostics, dependency analyses, name-addressed editing, move/rename/signature transformations, checkpoint and revert, and the check gate. Every write tool takes `preview`. Prefer these over reading whole files, grepping, and text-matching edits — see `docs/mcp-server-2026-08-23.md` and `docs/refactoring-tools-built-2026-08-23.md`. |

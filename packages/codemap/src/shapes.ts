@@ -49,12 +49,27 @@ export type ShapeOptions = {
 
 export const defaultShapeOptions: ShapeOptions = { literals: 'keep' }
 
+// One place a free name is read, and the hole it filled. Positions are absolute offsets in
+// the file the node came from, so a rewrite can splice over them.
+export type FreeReference = {
+  readonly name: string
+  // Index into `Shape.parameters`; repeated reads of one name share a hole.
+  readonly hole: number
+  readonly start: number
+  readonly end: number
+  // A shorthand property (`{ total }`) reads the name and names the field. Replacing the
+  // read has to keep the field, as `{ total: renamed }`.
+  readonly shorthand: boolean
+}
+
 export type Shape = {
   // Equal keys mean equal shapes. The string itself is an implementation detail: it is
   // stable within one run and readable when printed, but nothing should parse it.
   readonly key: string
   // Free names in first-use order. Index `n` in the key's `f<n>` holes is this name.
   readonly parameters: readonly string[]
+  // Every read of every free name, in source order. What a rewrite replaces.
+  readonly references: readonly FreeReference[]
 }
 
 // ---------------------------------------------------------------------------
@@ -68,22 +83,44 @@ type Scope = readonly string[]
 type Context = {
   readonly scope: Scope
   readonly options: ShapeOptions
+  // Only for turning a node into an offset; the walk never reads the file's text.
+  readonly sourceFile: ts.SourceFile
 }
 
 // Free names discovered so far are threaded left-to-right through the walk instead of being
 // accumulated in a mutable set, so the numbering is a function of the tree alone.
-type Encoding = {
-  readonly text: string
+type State = {
   readonly free: readonly string[]
+  readonly sites: readonly FreeReference[]
 }
+
+type Encoding = State & { readonly text: string }
 
 const kindName = (node: ts.Node): string => ts.SyntaxKind[node.kind] ?? String(node.kind)
 
-const encodeName = (name: string, context: Context, free: readonly string[]): Encoding => {
+const encodeName = (
+  node: ts.Node,
+  name: string,
+  shorthand: boolean,
+  context: Context,
+  state: State,
+): Encoding => {
   const bound = context.scope.indexOf(name)
-  if (bound >= 0) return { text: `b${bound}`, free }
-  const seen = free.indexOf(name)
-  return seen >= 0 ? { text: `f${seen}`, free } : { text: `f${free.length}`, free: [...free, name] }
+  if (bound >= 0) return { ...state, text: `b${bound}` }
+  const seen = state.free.indexOf(name)
+  const hole = seen >= 0 ? seen : state.free.length
+  const site: FreeReference = {
+    name,
+    hole,
+    shorthand,
+    start: node.getStart(context.sourceFile),
+    end: node.getEnd(),
+  }
+  return {
+    text: `f${hole}`,
+    free: seen >= 0 ? state.free : [...state.free, name],
+    sites: [...state.sites, site],
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -149,71 +186,69 @@ const verbatim = (node: ts.Node): string => {
   return children.length === 0 ? kindName(node) : `(${kindName(node)} ${children.join(' ')})`
 }
 
-type Sequence = {
-  readonly texts: readonly string[]
-  readonly free: readonly string[]
-}
+type Sequence = State & { readonly texts: readonly string[] }
 
-const encodeChildren = (
-  nodes: readonly ts.Node[],
-  context: Context,
-  free: readonly string[],
-): Sequence =>
+const encodeChildren = (nodes: readonly ts.Node[], context: Context, state: State): Sequence =>
   nodes.reduce<Sequence>(
-    (state, node) => {
-      const encoded = encodeNode(node, context, state.free)
-      return { texts: [...state.texts, encoded.text], free: encoded.free }
+    (current, node) => {
+      const encoded = encodeNode(node, context, current)
+      return { ...encoded, texts: [...current.texts, encoded.text] }
     },
-    { texts: [], free },
+    { ...state, texts: [] },
   )
 
 type BlockState = Sequence & { readonly scope: Scope }
 
-const encodeBlock = (node: ts.Block, context: Context, free: readonly string[]): Encoding => {
-  const state = node.statements.reduce<BlockState>(
+const encodeBlock = (node: ts.Block, context: Context, state: State): Encoding => {
+  const encoded = node.statements.reduce<BlockState>(
     (current, statement) => {
-      const encoded = encodeNode(statement, { ...context, scope: current.scope }, current.free)
+      const next = encodeNode(statement, { ...context, scope: current.scope }, current)
       return {
-        texts: [...current.texts, encoded.text],
-        free: encoded.free,
+        ...next,
+        texts: [...current.texts, next.text],
         scope: [...statementNames(statement), ...current.scope],
       }
     },
-    { texts: [], free, scope: [...hoistedNames(node.statements), ...context.scope] },
+    { ...state, texts: [], scope: [...hoistedNames(node.statements), ...context.scope] },
   )
-  return { text: `(Block ${state.texts.join(' ')})`, free: state.free }
+  return { ...encoded, text: `(Block ${encoded.texts.join(' ')})` }
 }
 
-const encodeNode = (node: ts.Node, context: Context, free: readonly string[]): Encoding => {
+const encodeNode = (node: ts.Node, context: Context, state: State): Encoding => {
   // Parentheses carry no information the tree does not already carry, so `(a + b) * c` and
   // its unparenthesized spelling of the same tree agree.
-  if (ts.isParenthesizedExpression(node)) return encodeNode(node.expression, context, free)
-  if (ts.isTypeNode(node)) return { text: `type${verbatim(node)}`, free }
-  if (ts.isIdentifier(node)) return encodeName(node.text, context, free)
-  if (ts.isPrivateIdentifier(node)) return { text: `.${node.text}`, free }
-  if (ts.isLiteralExpression(node)) return { text: literalText(node, context.options), free }
+  if (ts.isParenthesizedExpression(node)) return encodeNode(node.expression, context, state)
+  if (ts.isTypeNode(node)) return { ...state, text: `type${verbatim(node)}` }
+  if (ts.isIdentifier(node)) return encodeName(node, node.text, false, context, state)
+  if (ts.isPrivateIdentifier(node)) return { ...state, text: `.${node.text}` }
+  if (ts.isLiteralExpression(node))
+    return { ...state, text: literalText(node, context.options) }
   if (ts.isPropertyAccessExpression(node)) {
-    const target = encodeNode(node.expression, context, free)
+    const target = encodeNode(node.expression, context, state)
     const optional = node.questionDotToken === undefined ? '' : '?'
-    return { text: `(Access${optional} ${target.text} .${node.name.text})`, free: target.free }
+    return { ...target, text: `(Access${optional} ${target.text} .${node.name.text})` }
   }
   // `{ total }` reads the variable `total` and names the field `total`; the key records both,
   // since renaming the variable is free and renaming the field is not.
   if (ts.isShorthandPropertyAssignment(node)) {
-    const value = encodeName(node.name.text, context, free)
-    return { text: `(Shorthand .${node.name.text} ${value.text})`, free: value.free }
+    const value = encodeName(node.name, node.name.text, true, context, state)
+    return { ...value, text: `(Shorthand .${node.name.text} ${value.text})` }
   }
   if (ts.isPropertyAssignment(node) && !ts.isComputedPropertyName(node.name)) {
-    const value = encodeNode(node.initializer, context, free)
-    return { text: `(Property .${node.name.text} ${value.text})`, free: value.free }
+    const value = encodeNode(node.initializer, context, state)
+    return { ...value, text: `(Property .${node.name.text} ${value.text})` }
   }
-  if (ts.isBlock(node)) return encodeBlock(node, context, free)
+  if (ts.isBlock(node)) return encodeBlock(node, context, state)
   const bound = boundBy(node)
   const inner = bound.length === 0 ? context : { ...context, scope: [...bound, ...context.scope] }
-  const children = encodeChildren(childrenOf(node), inner, free)
-  return children.texts.length === 0
-    ? { text: kindName(node), free: children.free }
-    : { text: `(${kindName(node)} ${children.texts.join(' ')})`, free: children.free }
+  const children = encodeChildren(childrenOf(node), inner, state)
+  return {
+    ...children,
+    text:
+      children.texts.length === 0
+        ? kindName(node)
+        : `(${kindName(node)} ${children.texts.join(' ')})`,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -227,9 +262,15 @@ export const expressionShape = (
   node: ts.Node,
   options: ShapeOptions = defaultShapeOptions,
 ): Shape => {
-  const encoded = encodeNode(node, { scope: [], options }, [])
-  return { key: encoded.text, parameters: encoded.free }
+  const context: Context = { scope: [], options, sourceFile: node.getSourceFile() }
+  const encoded = encodeNode(node, context, { free: [], sites: [] })
+  return { key: encoded.text, parameters: encoded.free, references: encoded.sites }
 }
+
+// The names a node introduces for its own subtree: parameters, declarations, loop and catch
+// variables. Exported because deciding what an extracted expression must be passed means
+// asking the same question of every scope between it and the top of its file.
+export const boundNames = (node: ts.Node): readonly string[] => boundBy(node)
 
 // True when two nodes differ only by the names of their free and bound variables.
 export const sameShape = (
