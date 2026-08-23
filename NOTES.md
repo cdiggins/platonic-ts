@@ -267,3 +267,26 @@ packages/check` — 16/16 passed (11 ratchet.test.ts + 5 baseline.test.ts).
   whether `Notification` fires headless; `SessionEnd` reason for a `-p` exit; whether a
   model-invoked (vs user-typed) skill fires `UserPromptExpansion`. The docs cover none of
   BL-0015's /loop, cron, remote, or Workflow shapes by name.
+
+## Track L — BL-0009 ratchet fixture noise (Wave 4)
+
+- Fixed `countEscapeHatches` in `packages/check/src/ratchet.ts`: `tsDirectives` /
+  `eslintDisables` now match against comment trivia only (collected via `ts.createScanner`
+  walking the full token stream for `SingleLineCommentTrivia`/`MultiLineCommentTrivia`), not a
+  regex over raw source text. A test fixture containing the literal strings "@ts-ignore" /
+  "eslint-disable" inside a string literal now counts zero; a real directive comment still
+  counts. Exported signature of `countEscapeHatches` is unchanged (Wave 3 Track G still consumes
+  it as-is).
+- Repo-wide scan after the fix: `tsDirectives` 4→1, `eslintDisables` 7→0 — the dropped 3/7 were
+  all fixture-string noise in `packages/check/test/**`. `ratchet.json` updated to
+  `tsDirectives: 1, eslintDisables: 0`; `asCasts`/`nonNullAssertions` left untouched (7/23,
+  AST-based counts, not in scope of this fix).
+- Note for integration: a fresh repo-wide scan right now shows `asCasts: 11` (was 7), from other
+  Wave 3/4 tracks' concurrent commits on the shared tree, unrelated to this fix — whoever lands
+  last should re-run the scan and bump that baseline component before merging, or `npm run
+  check`'s ratchet step will flag a false regression.
+- Fence gates (packages/check only) all green: `npx tsc --noEmit` clean for packages/check;
+  `npx eslint packages/check` clean; `npx vitest run packages/check` 18/18 passed (added 1 test).
+  Whole-repo `npx tsc --noEmit` currently fails on unrelated in-progress files outside this fence
+  (`packages/transcripts/src/index.ts`, `packages/init/src/index.ts` — other Wave 4 tracks mid-edit),
+  so `npm run check` end-to-end is not green yet, but not from this track's files.

@@ -1,13 +1,12 @@
 // Pure escape-hatch counting via the TypeScript compiler API.
 //
-// Approximation for tsDirectives / eslintDisables: matched by regex over the
-// raw source text rather than full comment-trivia parsing. These are fixed
-// magic tokens (@ts-ignore, eslint-disable-line, ...) that essentially never
-// appear outside real directive comments, so a whole-text regex is robust and
-// far simpler than walking leading/trailing comment ranges per node. Trade-off:
-// a string literal that happens to contain e.g. "eslint-disable-line" would be
-// miscounted as a hit — judged an acceptable, rare edge case for a ratchet
-// counter (it only needs to move monotonically with real usage, not be exact).
+// tsDirectives / eslintDisables are matched against comment trivia only,
+// collected with the TS scanner (all SingleLineCommentTrivia /
+// MultiLineCommentTrivia tokens across the file). This keeps directive
+// strings that appear inside string literals or fixture data — e.g. a test
+// fixture asserting on the literal text "@ts-ignore" — from inflating the
+// count, while still catching every real directive comment regardless of
+// which AST node it attaches to.
 import ts from 'typescript'
 
 export type RatchetCounts = {
@@ -86,12 +85,30 @@ const countMatches = (re: RegExp, text: string): number => {
   return matches ? matches.length : 0
 }
 
+const isCommentTrivia = (kind: ts.SyntaxKind): boolean =>
+  kind === ts.SyntaxKind.SingleLineCommentTrivia || kind === ts.SyntaxKind.MultiLineCommentTrivia
+
+// Scans the full token stream (trivia included) and collects the text of
+// every comment in the file, independent of which AST node it attaches to.
+const collectCommentText = (sourceText: string): string => {
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, sourceText)
+  const scanRest = (): readonly string[] => {
+    const kind = scanner.scan()
+    if (kind === ts.SyntaxKind.EndOfFileToken) return []
+    const text = isCommentTrivia(kind) ? scanner.getTokenText() : undefined
+    const rest = scanRest()
+    return text === undefined ? rest : [text, ...rest]
+  }
+  return scanRest().join('\n')
+}
+
 export const countEscapeHatches = (fileName: string, sourceText: string): RatchetCounts => {
   const sourceFile = ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true)
   const astCounts = countNode(sourceFile)
+  const commentText = collectCommentText(sourceText)
   return {
     ...astCounts,
-    tsDirectives: countMatches(TS_DIRECTIVE_RE, sourceText),
-    eslintDisables: countMatches(ESLINT_DISABLE_RE, sourceText),
+    tsDirectives: countMatches(TS_DIRECTIVE_RE, commentText),
+    eslintDisables: countMatches(ESLINT_DISABLE_RE, commentText),
   }
 }

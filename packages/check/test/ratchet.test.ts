@@ -50,6 +50,17 @@ describe('countEscapeHatches', () => {
     expect(countEscapeHatches('f.ts', src).eslintDisables).toBe(3)
   })
 
+  it('ignores directive strings inside string literals (fixture noise), counts real comments', () => {
+    const src = [
+      'const fixture = "// @ts-ignore and eslint-disable inside a string literal"',
+      '// @ts-ignore',
+      'const a: string = 1',
+    ].join('\n')
+    const counts = countEscapeHatches('f.ts', src)
+    expect(counts.tsDirectives).toBe(1)
+    expect(counts.eslintDisables).toBe(0)
+  })
+
   it('reports all zero for a clean file', () => {
     const src = 'export const add = (a: number, b: number): number => a + b'
     expect(countEscapeHatches('f.ts', src)).toEqual(zero)
