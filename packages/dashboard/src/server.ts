@@ -4,8 +4,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AgentActivity, DashboardSnapshot } from '../../core/src/index.ts'
 import { summarizeUsage } from '../../transcripts/src/index.ts'
+import type { ToolInvocation } from '../../transcripts/src/index.ts'
 import { renderPage } from './ui.ts'
 import { parseUsageRange, sliceActivitiesByRange } from './range.ts'
+import type { CommitRow } from './commits.ts'
 
 export type SnapshotProvider = () => Promise<DashboardSnapshot>
 
@@ -14,6 +16,14 @@ export type SnapshotProvider = () => Promise<DashboardSnapshot>
 // When omitted, the `range` query param is accepted but has no effect — the
 // snapshot's own all-time usage passes through unchanged.
 export type ActivitiesProvider = () => Promise<readonly AgentActivity[]>
+
+// Optional: recent tool/skill invocation history (BL-0012). Most-recent-first,
+// already capped by the caller (main.ts uses invocationHistory(..., 100)).
+export type InvocationsProvider = () => Promise<readonly ToolInvocation[]>
+
+// Optional: git commits correlated to sessions (BL-0014). Re-run per request
+// (not cached) so the panel reflects commits made since the last poll.
+export type CommitsProvider = () => Promise<readonly CommitRow[]>
 
 // Re-summarizes `snapshot.usage` over the activities that fall in `range`, keeping
 // `outputTokensPerMinute` (a live rate, not a historical total) from the original
@@ -108,6 +118,24 @@ const handleEvents = (
   res.on('close', cleanup)
 }
 
+const handleInvocations = async (res: ServerResponse, invocationsProvider: InvocationsProvider): Promise<void> => {
+  try {
+    const invocations = await invocationsProvider()
+    sendJson(res, 200, invocations)
+  } catch (err) {
+    sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) })
+  }
+}
+
+const handleCommits = async (res: ServerResponse, commitsProvider: CommitsProvider): Promise<void> => {
+  try {
+    const rows = await commitsProvider()
+    sendJson(res, 200, rows)
+  } catch (err) {
+    sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) })
+  }
+}
+
 export const startDashboard = (options: {
   readonly port: number
   readonly provider: SnapshotProvider
@@ -115,8 +143,12 @@ export const startDashboard = (options: {
   // Optional: enables range-scoped usage (BL-0008) via a `?range=` query param on
   // /api/state and /api/events. Omit to keep pre-existing all-time-only behavior.
   readonly activitiesProvider?: ActivitiesProvider
+  // Optional: enables GET /api/invocations (BL-0012). Omit to 404 that route.
+  readonly invocationsProvider?: InvocationsProvider
+  // Optional: enables GET /api/commits (BL-0014). Omit to 404 that route.
+  readonly commitsProvider?: CommitsProvider
 }): Promise<{ readonly port: number; readonly close: () => Promise<void> }> => {
-  const { provider, pollIntervalMs, activitiesProvider } = options
+  const { provider, pollIntervalMs, activitiesProvider, invocationsProvider, commitsProvider } = options
   const sseClients = new Set<SseClient>()
 
   const server = createServer((req, res) => {
@@ -150,6 +182,24 @@ export const startDashboard = (options: {
         pollIntervalMs,
         sseClients,
       )
+      return
+    }
+
+    if (pathname === '/api/invocations') {
+      if (invocationsProvider === undefined) {
+        res.writeHead(404).end()
+        return
+      }
+      void handleInvocations(res, invocationsProvider)
+      return
+    }
+
+    if (pathname === '/api/commits') {
+      if (commitsProvider === undefined) {
+        res.writeHead(404).end()
+        return
+      }
+      void handleCommits(res, commitsProvider)
       return
     }
 

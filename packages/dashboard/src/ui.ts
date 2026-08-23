@@ -2,6 +2,9 @@
 // Client connects to /api/events (SSE) and renders on every push.
 
 import { DEFAULT_USAGE_RANGE, USAGE_RANGES, usageRangeLabel } from './range.ts'
+import { PIE_PALETTE } from './pie.ts'
+
+const pieColorsJson = JSON.stringify(PIE_PALETTE)
 
 const rangeOptionsHtml = USAGE_RANGES.map(
   (r) =>
@@ -44,6 +47,68 @@ const clientScript = `
   }
 
   var STATUS_ORDER = ['in-progress', 'ready', 'done', 'dropped'];
+  var ALL_STATUSES = ['idea', 'ready', 'in-progress', 'done', 'dropped'];
+
+  // ---------------------------------------------------------------------
+  // Pie charts (BL-0013). Hand-rolled inline SVG, no library. The arc math
+  // mirrors packages/dashboard/src/pie.ts's computePieArcs/pieSvg exactly —
+  // that TS module is the tested source of truth for the formula; this copy
+  // exists because an inline <script> cannot import an ES module.
+  // ---------------------------------------------------------------------
+  var PIE_COLORS = ${pieColorsJson};
+
+  function pieColorForIndex(i) {
+    return PIE_COLORS[i % PIE_COLORS.length];
+  }
+
+  function pieArcPoint(cx, cy, r, angle) {
+    return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
+  }
+
+  function pieSvg(slices, size) {
+    size = size || 120;
+    var positive = slices.filter(function (s) { return s.value > 0; });
+    var total = positive.reduce(function (sum, s) { return sum + s.value; }, 0);
+    var r = size / 2;
+    var cx = size / 2;
+    var cy = size / 2;
+    if (total <= 0) {
+      return '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '" role="img" aria-label="no data"><circle cx="' + cx + '" cy="' + cy + '" r="' + (r - 2) + '" fill="none" stroke="#263043" stroke-width="2" /></svg>';
+    }
+    var angle = 0;
+    var paths = positive.map(function (slice) {
+      var sweep = (slice.value / total) * Math.PI * 2;
+      var startAngle = angle;
+      var endAngle = angle + sweep;
+      angle = endAngle;
+      var d;
+      if (positive.length === 1) {
+        d = 'M ' + cx + ' ' + (cy - r) + ' A ' + r + ' ' + r + ' 0 1 1 ' + cx + ' ' + (cy + r) + ' A ' + r + ' ' + r + ' 0 1 1 ' + cx + ' ' + (cy - r) + ' Z';
+      } else {
+        var start = pieArcPoint(cx, cy, r, startAngle);
+        var end = pieArcPoint(cx, cy, r, endAngle);
+        var largeArc = sweep > Math.PI ? 1 : 0;
+        d = 'M ' + cx + ' ' + cy + ' L ' + start.x + ' ' + start.y + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + end.x + ' ' + end.y + ' Z';
+      }
+      return '<path d="' + d + '" fill="' + slice.color + '"><title>' + escapeHtml(slice.label) + '</title></path>';
+    }).join('');
+    return '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '" role="img">' + paths + '</svg>';
+  }
+
+  function pieLegendHtml(slices) {
+    return slices
+      .filter(function (s) { return s.value > 0; })
+      .map(function (s) {
+        return '<div class="pie-legend-row"><span class="pie-swatch" style="background:' + s.color + '"></span>' + escapeHtml(s.label) + ' <span class="muted">' + formatTokens(s.value) + '</span></div>';
+      })
+      .join('');
+  }
+
+  function renderPieChart(containerId, slices) {
+    var el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = '<div class="pie-chart">' + pieSvg(slices, 100) + '<div class="pie-legend">' + pieLegendHtml(slices) + '</div></div>';
+  }
 
   function initDocsToggle() {
     var toggle = document.getElementById('docs-toggle');
@@ -110,6 +175,15 @@ const clientScript = `
         '<td>' + formatNumber(m.messages) + '</td>';
       usageBody.appendChild(tr);
     });
+
+    renderPieChart('usage-pie', u.byModel.map(function (m, i) {
+      return { label: shortModel(m.model), value: m.outputTokens, color: pieColorForIndex(i) };
+    }));
+
+    renderPieChart('backlog-pie', ALL_STATUSES.map(function (status, i) {
+      var count = snapshot.backlog.filter(function (b) { return b.status === status; }).length;
+      return { label: status, value: count, color: pieColorForIndex(i) };
+    }));
 
     var backlogEl = document.getElementById('backlog');
     backlogEl.innerHTML = '';
@@ -197,7 +271,80 @@ const clientScript = `
     });
   }
 
+  // ---------------------------------------------------------------------
+  // Recent tool + skill invocations (BL-0012). Polled separately from the SSE
+  // snapshot stream via a same-origin fetch — not an external request, and
+  // keeps the invocation ring buffer out of the per-tick SSE payload.
+  // ---------------------------------------------------------------------
+  function renderInvocations(invocations) {
+    var body = document.querySelector('#invocations-table tbody');
+    if (!body) return;
+    body.innerHTML = '';
+    if (!invocations || invocations.length === 0) {
+      body.innerHTML = '<tr><td colspan="4" class="empty">no invocations yet</td></tr>';
+      return;
+    }
+    invocations.forEach(function (inv) {
+      var tr = document.createElement('tr');
+      var timeText = inv.timestamp ? new Date(inv.timestamp).toLocaleTimeString() : '-';
+      var skillCell = inv.skill ? '<span class="badge skill-badge">' + escapeHtml(inv.skill) + '</span>' : '-';
+      tr.innerHTML =
+        '<td>' + escapeHtml(timeText) + '</td>' +
+        '<td>' + escapeHtml(inv.tool) + '</td>' +
+        '<td>' + skillCell + '</td>' +
+        '<td class="wrap">' + escapeHtml(inv.detail || '-') + '</td>';
+      body.appendChild(tr);
+    });
+  }
+
+  function pollInvocations() {
+    fetch('/api/invocations')
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(renderInvocations)
+      .catch(function () { /* keep last rendered table on fetch failure */ });
+  }
+
+  // ---------------------------------------------------------------------
+  // Commits correlated to sessions (BL-0014). Same same-origin polling
+  // pattern as invocations; the server re-reads git log per request.
+  // ---------------------------------------------------------------------
+  function confidenceBadgeClass(confidence) {
+    if (confidence === 'trailer') return 'confidence-badge confidence-trailer';
+    if (confidence === 'time-window') return 'confidence-badge confidence-time-window';
+    return 'confidence-badge confidence-none';
+  }
+
+  function renderCommits(rows) {
+    var body = document.querySelector('#commits-table tbody');
+    if (!body) return;
+    body.innerHTML = '';
+    if (!rows || rows.length === 0) {
+      body.innerHTML = '<tr><td colspan="4" class="empty">no commits</td></tr>';
+      return;
+    }
+    rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + escapeHtml(row.shortHash) + '</td>' +
+        '<td class="wrap">' + escapeHtml(row.subject) + '</td>' +
+        '<td>' + escapeHtml(row.sessionLabel || '-') + '</td>' +
+        '<td><span class="' + confidenceBadgeClass(row.confidence) + '">' + escapeHtml(row.confidence) + '</span></td>';
+      body.appendChild(tr);
+    });
+  }
+
+  function pollCommits() {
+    fetch('/api/commits')
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(renderCommits)
+      .catch(function () { /* keep last rendered table on fetch failure */ });
+  }
+
   initDocsToggle();
+  pollInvocations();
+  pollCommits();
+  setInterval(pollInvocations, 4000);
+  setInterval(pollCommits, 5000);
 
   // Usage range selection (BL-0008). The dropdown's own DOM node is never touched
   // by render(), so the selection survives every SSE push; changing it reconnects
@@ -333,6 +480,15 @@ export const renderPage = (): string => `<!doctype html>
     color: #c9d1d9;
     margin: 0;
   }
+  .pie-chart { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+  .pie-legend { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+  .pie-legend-row { display: flex; align-items: center; gap: 6px; color: #d8dee9; }
+  .pie-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .skill-badge { background: #21362b; color: #7ee787; font-weight: 600; }
+  .confidence-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; }
+  .confidence-trailer { background: #21362b; color: #7ee787; }
+  .confidence-time-window { background: #3a2e12; color: #f0883e; }
+  .confidence-none { background: #263043; color: #6b7793; }
 </style>
 </head>
 <body>
@@ -367,6 +523,10 @@ export const renderPage = (): string => `<!doctype html>
     <p>Work items grouped by status (in-progress/ready/done/dropped), WorkQuarry schema. Priority p1 (highest) to p3, plus type and effort.</p>
     <h3>Docs</h3>
     <p>The design notes in the repository, listed by title, last modification, and size, newest first. Click a file link to open it in VSCode.</p>
+    <h3>Recent tool + skill invocations</h3>
+    <p>Every tool call an agent made, most recent first (last 100), with the specific skill named when the tool was <code>Skill</code>. Polled separately from the main snapshot stream every few seconds.</p>
+    <h3>Commits</h3>
+    <p>Recent git commits (last 30), each with a best-effort link to the session that produced it: an exact match from a <code>Session-Id</code>/<code>Co-Authored-By</code> trailer, a same-origin time-window guess, or no match. Polled every few seconds; the server re-reads git log on each request.</p>
     <h3>Where the data comes from</h3>
     <ul>
       <li><strong>Agents, Usage</strong> — the JSONL session transcripts Claude Code writes for every session, under <code>~/.claude/projects/</code>, plus the per-session subagent and task transcript directories. Nothing is instrumented in the agents themselves; the dashboard only reads files that already exist.</li>
@@ -396,6 +556,7 @@ export const renderPage = (): string => `<!doctype html>
       </select>
     </h2>
     <div class="grid-usage" id="usage-totals"></div>
+    <div id="usage-pie"></div>
     <table id="usage-table">
       <thead>
         <tr><th>Model</th><th>In</th><th>Out</th><th>Cache read</th><th>Cache create</th><th>Msgs</th></tr>
@@ -411,7 +572,28 @@ export const renderPage = (): string => `<!doctype html>
 
   <section>
     <h2>Backlog</h2>
+    <div id="backlog-pie"></div>
     <div id="backlog"></div>
+  </section>
+
+  <section>
+    <h2>Recent tool + skill invocations</h2>
+    <table id="invocations-table">
+      <thead>
+        <tr><th>Time</th><th>Tool</th><th>Skill</th><th>Detail</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Commits</h2>
+    <table id="commits-table">
+      <thead>
+        <tr><th>Hash</th><th>Subject</th><th>Session</th><th>Confidence</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </section>
 
   <section>

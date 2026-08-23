@@ -475,6 +475,75 @@ printed a 4-action plan + 4 manual steps and wrote nothing; `--yes` applied it, 
 conflicting values intact; a re-run after adding an `as` cast reported
 `regressed on asCasts`; the generated `eslint.config.js` parses under `node --check`.
 
+### Track R — dashboard views (BL-0012, BL-0013, BL-0014, Wave 5)
+
+Files: new `packages/dashboard/src/{pie,invocations,commits}.ts` +
+`test/{pie,invocations,commits}.test.ts`; modified `server.ts` (+tests), `ui.ts`, `main.ts`.
+`DashboardSnapshot` untouched — every new data path travels over its own endpoint with types
+local to the dashboard package, per the fence's hard rule.
+
+- **BL-0013 pie charts**: `pie.ts` exports pure `computePieArcs`/`pieSvg`/`colorForIndex` —
+  hand-rolled SVG arc math (radians clockwise from 12 o'clock, prefix-sum angles via
+  `reduce` so no `push`), tested for angle-sum-to-2π, positive-slice filtering, single-slice
+  full-circle path, and XML-escaping of label text. **Not called from server-rendered HTML**:
+  the chart must redraw client-side on every SSE push against live snapshot data, and ui.ts's
+  inline `<script>` cannot `import` an ES module, so `clientScript` carries a hand-copied
+  plain-JS mirror of the exact same formula (`pieSvg`/`pieArcPoint` inside the template
+  literal). Only the fixed color palette (`PIE_PALETTE`) is shared for real, injected via
+  `JSON.stringify(PIE_PALETTE)` into the client script at render time — the one piece that
+  can cross the TS/inline-JS boundary as data instead of code. Flagging the duplication
+  explicitly: if the arc formula ever needs a fix, both `pie.ts` and the copy in `ui.ts`'s
+  `clientScript` need it. Wired into `render()`: usage-by-model pie (slices = `byModel`
+  entries by `outputTokens`) next to `#usage-table`, backlog-by-status pie (all five
+  `BacklogStatus` values, including `idea`) next to `#backlog`.
+- **BL-0012 invocations**: `pollTranscripts` only returns `AgentActivity` (one record per
+  line, collapsed to a single `lastTool` downstream) — not enough for a per-call history, and
+  `packages/transcripts` is outside this track's fence anyway. `invocations.ts` re-tails the
+  *same* transcript files independently (own `discoverTranscriptFiles` call, own per-file
+  byte-offset/remainder state mirroring `pollTranscripts`'s shape exactly) and runs the
+  already-exported `parseToolInvocations` over newly appended lines only. Two separate readers
+  of the same files, verified independently in tests (tail/shrink/vanish parity with the
+  transcripts package's own tests). `main.ts` keeps a second tail state + a capped 2000-entry
+  buffer alongside the existing `activities` array; `/api/invocations` serves
+  `invocationHistory(invocations, 100)` (most-recent-first). Client polls it via `fetch` every
+  4s — a plain same-origin `fetch`, not a new SSE channel, kept separate from the 2s snapshot
+  push so the invocation ring buffer never bloats the per-tick SSE payload. Table: time, tool,
+  skill (as a highlighted badge when present), detail.
+- **BL-0014 commits**: `commits.ts` exports pure `buildCommitRows(commits, links)` merging
+  gitlink's `CommitInfo` + `CommitSessionLink` by hash into a flat row (short hash, subject,
+  timestamp, session label, confidence) — session label prefers `sessionId`, falls back to
+  `sessionFile`, else `undefined`. `main.ts`'s `commitsProvider` shells to `readGitLog` +
+  `parseGitLog` + `correlateCommits` fresh **on every request** (no caching), matching the
+  task's "refresh server-side per request" instruction — `/api/commits` is a plain GET, not
+  SSE. `correlateCommits`'s activity param type uses bare optional fields (`sessionId?:
+  string`, not `T | undefined`) under `exactOptionalPropertyTypes: true`; assigning
+  `sessionId: possiblyUndefined` there is a type error, so `toCorrelationActivity` builds the
+  object via conditional spread (`...(x === undefined ? {} : { x })`) rather than ever writing
+  `sessionId: undefined` — same pattern Track K documented for `HookEvent` in Wave 4. Client
+  polls `/api/commits` every 5s; confidence renders as a 3-way badge (trailer / time-window /
+  none) with distinct colors matching the existing badge/dot color language in `ui.ts`.
+- No `packages/core` edits (fence's hard rule honored — every new type is local to
+  `packages/dashboard`: `PieSlice`/`PieArc` in `pie.ts`, `InvocationTailState` in
+  `invocations.ts`, `CommitRow` in `commits.ts`). No new runtime dependencies. `server.ts`
+  gained two more **optional** providers (`invocationsProvider`, `commitsProvider`) following
+  the exact pattern Track O set for `activitiesProvider` — omitted means the route 404s,
+  fully backward compatible with any caller that doesn't supply them.
+- Commit granularity note: implemented and gated all three features before the first commit
+  (interleaved edits to shared `main.ts`/`server.ts`/`ui.ts` rather than three cleanly
+  separable diffs), so — unlike the "commit after each feature" checkpoint instruction —
+  this landed as a single commit covering all three. Each feature's own new files
+  (`pie.ts`/`invocations.ts`/`commits.ts` + their tests) are cleanly separable in the diff by
+  filename if a future split is wanted.
+- Did not push (repo convention across every wave's fence table reserves push for the
+  supervisor track; this track's own instructions specify commit only).
+
+Gate results (this fence): `npx tsc --noEmit` — clean, no errors touching
+`packages/dashboard` (or anywhere else at the time of this check). `npx eslint
+packages/dashboard` — clean. `npx vitest run packages/dashboard` — 40/40 passed (8 new
+pie.test.ts, 4 new invocations.test.ts, 5 new commits.test.ts, 6 new server.test.ts cases for
+the two new endpoints, plus the 9 range.test.ts + 8 pre-existing server.test.ts cases
+unchanged).
+
 ### Track T — hook tail seam (BL-0004 read half, Wave 5)
 
 - New module `packages/hooks/src/tail.ts`: incremental reader for `.claude/events/events.jsonl`.

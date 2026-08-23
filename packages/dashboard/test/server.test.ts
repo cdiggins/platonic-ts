@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { startDashboard, type ActivitiesProvider, type SnapshotProvider } from '../src/server.ts'
+import {
+  startDashboard,
+  type ActivitiesProvider,
+  type CommitsProvider,
+  type InvocationsProvider,
+  type SnapshotProvider,
+} from '../src/server.ts'
 import type { AgentActivity, DashboardSnapshot } from '../../core/src/index.ts'
+import type { ToolInvocation } from '../../transcripts/src/index.ts'
+import type { CommitRow } from '../src/commits.ts'
 
 const snapshot: DashboardSnapshot = {
   generatedAt: 1_700_000_000_000,
@@ -222,6 +230,70 @@ describe('startDashboard', () => {
     // Unknown/missing range falls back to the default rather than erroring.
     const resDefault = await fetch(`http://localhost:${started.port}/api/state`)
     expect(resDefault.status).toBe(200)
+  })
+
+  it('returns 404 for /api/invocations when no invocationsProvider is supplied', async () => {
+    const started = await startDashboard({ port: 0, provider: okProvider, pollIntervalMs: 50 })
+    close = started.close
+
+    const res = await fetch(`http://localhost:${started.port}/api/invocations`)
+    expect(res.status).toBe(404)
+  })
+
+  it('serves recent invocations as JSON on GET /api/invocations', async () => {
+    const invocations: readonly ToolInvocation[] = [
+      { file: 'a.jsonl', sessionId: 's1', timestamp: '2026-08-22T10:00:00.000Z', tool: 'Skill', skill: 'caveman', detail: undefined },
+      { file: 'a.jsonl', sessionId: 's1', timestamp: '2026-08-22T09:59:00.000Z', tool: 'Read', skill: undefined, detail: 'foo.ts' },
+    ]
+    const invocationsProvider: InvocationsProvider = () => Promise.resolve(invocations)
+    const started = await startDashboard({ port: 0, provider: okProvider, pollIntervalMs: 50, invocationsProvider })
+    close = started.close
+
+    const res = await fetch(`http://localhost:${started.port}/api/invocations`)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('application/json')
+    const body = await readJson(res)
+    expect(body).toEqual(invocations)
+  })
+
+  it('returns 500 from /api/invocations when the provider throws', async () => {
+    const failing: InvocationsProvider = () => Promise.reject(new Error('boom'))
+    const started = await startDashboard({ port: 0, provider: okProvider, pollIntervalMs: 50, invocationsProvider: failing })
+    close = started.close
+
+    const res = await fetch(`http://localhost:${started.port}/api/invocations`)
+    expect(res.status).toBe(500)
+  })
+
+  it('returns 404 for /api/commits when no commitsProvider is supplied', async () => {
+    const started = await startDashboard({ port: 0, provider: okProvider, pollIntervalMs: 50 })
+    close = started.close
+
+    const res = await fetch(`http://localhost:${started.port}/api/commits`)
+    expect(res.status).toBe(404)
+  })
+
+  it('serves commit rows as JSON on GET /api/commits', async () => {
+    const rows: readonly CommitRow[] = [
+      { hash: 'abc123', shortHash: 'abc123', subject: 'do a thing', timestamp: '2026-08-22T10:00:00.000Z', sessionLabel: 's1', confidence: 'trailer' },
+    ]
+    const commitsProvider: CommitsProvider = () => Promise.resolve(rows)
+    const started = await startDashboard({ port: 0, provider: okProvider, pollIntervalMs: 50, commitsProvider })
+    close = started.close
+
+    const res = await fetch(`http://localhost:${started.port}/api/commits`)
+    expect(res.status).toBe(200)
+    const body = await readJson(res)
+    expect(body).toEqual(rows)
+  })
+
+  it('returns 500 from /api/commits when the provider throws', async () => {
+    const failing: CommitsProvider = () => Promise.reject(new Error('boom'))
+    const started = await startDashboard({ port: 0, provider: okProvider, pollIntervalMs: 50, commitsProvider: failing })
+    close = started.close
+
+    const res = await fetch(`http://localhost:${started.port}/api/commits`)
+    expect(res.status).toBe(500)
   })
 
   it('close() stops the server and frees the port', async () => {
