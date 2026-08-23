@@ -9,6 +9,7 @@ import { truncate } from '../../core/src/index.ts'
 import type { SourceSpan, SymbolId, SymbolInfo, SymbolKind, SymbolReference } from '../../core/src/index.ts'
 
 const SIGNATURE_MAX_LENGTH = 120
+const DOC_LINE_MAX_LENGTH = 120
 
 const toForwardSlashes = (path: string): string => path.split('\\').join('/')
 
@@ -41,6 +42,10 @@ type Container = {
   readonly name: string | undefined
   readonly exported: boolean
   readonly inExportedStatement: boolean
+  // Doc comment of the enclosing single-declaration VariableStatement — the
+  // comment sits on the statement, two levels above the declaration, like the
+  // export keyword does.
+  readonly statementDocLine: string | undefined
 }
 
 const collapseWhitespace = (text: string): string => text.replace(/\s+/g, ' ').trim()
@@ -151,6 +156,58 @@ const describeDeclaration = (sourceFile: ts.SourceFile, node: ts.Node): Declarat
   return undefined
 }
 
+type CommentScan = {
+  readonly start: number
+  readonly stopped: boolean
+}
+
+// Where the comment block written directly above a node begins; a blank line
+// ends the block, so a file header is not the first declaration's doc. Same
+// attachment rule the editing tools use (packages/mcp/src/declaration.ts).
+const docCommentStart = (sourceFile: ts.SourceFile, node: ts.Node): number => {
+  const nodeStart = node.getStart(sourceFile)
+  const ranges = ts.getLeadingCommentRanges(sourceFile.text, node.getFullStart()) ?? []
+  return ranges.reduceRight<CommentScan>(
+    (scan, range) =>
+      scan.stopped || /\n[ \t]*\r?\n/.test(sourceFile.text.slice(range.end, scan.start))
+        ? { start: scan.start, stopped: true }
+        : { start: range.pos, stopped: false },
+    { start: nodeStart, stopped: false },
+  ).start
+}
+
+// First line of the doc comment above a node, comment markers stripped.
+const docLineOf = (sourceFile: ts.SourceFile, node: ts.Node): string | undefined => {
+  const start = docCommentStart(sourceFile, node)
+  const nodeStart = node.getStart(sourceFile)
+  if (start >= nodeStart) return undefined
+  const firstLine = sourceFile.text.slice(start, nodeStart).split('\n')[0] ?? ''
+  const stripped = collapseWhitespace(
+    firstLine.replace(/^\/\/+/, '').replace(/^\/\*+/, '').replace(/\*+\/\s*$/, ''),
+  )
+  return stripped.length === 0 ? undefined : truncate(stripped, DOC_LINE_MAX_LENGTH)
+}
+
+// A VariableDeclaration's doc sits on its statement and travels down the walk;
+// every other declaration form carries its own leading comment.
+const docLineFor = (
+  sourceFile: ts.SourceFile,
+  node: ts.Node,
+  container: Container,
+): string | undefined =>
+  ts.isVariableDeclaration(node) ? container.statementDocLine : docLineOf(sourceFile, node)
+
+const carriesDocContext = (
+  sourceFile: ts.SourceFile,
+  node: ts.Node,
+  container: Container,
+): string | undefined =>
+  ts.isVariableStatement(node) && node.declarationList.declarations.length === 1
+    ? docLineOf(sourceFile, node)
+    : node.kind === ts.SyntaxKind.SyntaxList || ts.isVariableDeclarationList(node)
+      ? container.statementDocLine
+      : undefined
+
 const spanOf = (sourceFile: ts.SourceFile, node: ts.Node): SourceSpan => {
   const start = node.getStart(sourceFile)
   return { start, length: node.end - start }
@@ -164,6 +221,7 @@ const toSymbolInfo = (
   file: string,
   facts: DeclarationFacts,
   container: Container,
+  docLine: string | undefined,
 ): SymbolInfo => {
   const span = spanOf(sourceFile, facts.nameNode)
   return {
@@ -181,6 +239,7 @@ const toSymbolInfo = (
       ((facts.kind === 'method' || facts.kind === 'property') && container.exported),
     containerName: container.name,
     signature: facts.signature,
+    docLine,
   }
 }
 
@@ -201,11 +260,15 @@ const walkDeclarations = (
   container: Container,
 ): readonly SymbolInfo[] => {
   const facts = describeDeclaration(sourceFile, node)
-  const symbol = facts === undefined ? undefined : toSymbolInfo(sourceFile, file, facts, container)
+  const symbol =
+    facts === undefined
+      ? undefined
+      : toSymbolInfo(sourceFile, file, facts, container, docLineFor(sourceFile, node, container))
   const inner: Container = {
     name: symbol?.name ?? container.name,
     exported: symbol?.exported ?? container.exported,
     inExportedStatement: carriesExportContext(node, container),
+    statementDocLine: carriesDocContext(sourceFile, node, container),
   }
   const nested = node
     .getChildren(sourceFile)
@@ -219,6 +282,7 @@ export const extractSymbols = (root: string, sourceFile: ts.SourceFile): readonl
     name: undefined,
     exported: false,
     inExportedStatement: false,
+    statementDocLine: undefined,
   })
 
 const identifiersIn = (sourceFile: ts.SourceFile, node: ts.Node): readonly ts.Identifier[] =>

@@ -39,6 +39,7 @@ const symbol: SymbolInfo = {
   exported: true,
   containerName: undefined,
   signature: '(text: string, max: number) => string',
+  docLine: undefined,
 }
 
 const reference: SymbolReference = {

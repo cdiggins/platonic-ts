@@ -24,6 +24,9 @@ const declarationOf = (symbol: SymbolInfo): string => {
 const describeSymbol = (symbol: SymbolInfo): string =>
   `${located(symbol)} ${declarationOf(symbol)}`
 
+const withDocLine = (symbol: SymbolInfo, text: string): string =>
+  symbol.docLine === undefined ? text : `${text} — ${symbol.docLine}`
+
 export type LookupFailure = Extract<SymbolLookup, { readonly ok: false }>
 
 export const explainLookup = (name: string, lookup: LookupFailure): ToolOutput =>
@@ -134,7 +137,7 @@ export const search = (
   return {
     ok: true,
     text: [`${matches.length} matches for "${query}"`]
-      .concat(shown.map(describeSymbol))
+      .concat(shown.map((symbol) => withDocLine(symbol, describeSymbol(symbol))))
       .concat(more)
       .join('\n'),
   }
@@ -165,7 +168,9 @@ const rankedDeclarations = (workspace: Workspace, budget: number): readonly stri
     .map((symbol) => ({ symbol, count: uses.get(symbol.id) ?? 0 }))
     .filter((entry) => entry.count > 0)
     .sort((left, right) => right.count - left.count)
-    .map((entry) => `${describeSymbol(entry.symbol)} — ${entry.count} uses`)
+    .map((entry) =>
+      withDocLine(entry.symbol, `${describeSymbol(entry.symbol)} — ${entry.count} uses`),
+    )
   const shown = withinBudget(lines, budget)
   return shown.length === 0
     ? []

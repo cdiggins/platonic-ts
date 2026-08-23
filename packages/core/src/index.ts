@@ -180,6 +180,8 @@ export type SymbolInfo = {
   readonly exported: boolean
   readonly containerName: string | undefined
   readonly signature: string | undefined
+  // First line of the doc comment written directly above the declaration.
+  readonly docLine: string | undefined
 }
 
 export type SymbolReference = {

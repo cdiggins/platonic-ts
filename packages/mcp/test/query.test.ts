@@ -81,6 +81,12 @@ describe('search', () => {
     expect(search(workspace, 'local', undefined, true).text).toContain('a.ts:8 variable local')
   })
 
+  it('shows the doc line beside the signature when the declaration has one', () => {
+    expect(search(workspace, 'twice', undefined, false).text).toContain(
+      '— Doubles the coordinate.',
+    )
+  })
+
   it('filters by kind and rejects an unknown one', () => {
     expect(search(workspace, 'point', 'type', false).text).toContain('Point')
     expect(search(workspace, 'point', 'widget', false).ok).toBe(false)
@@ -95,7 +101,7 @@ describe('repoMap', () => {
   it('ranks exported declarations by use, leaving out the unused', () => {
     const text = repoMap(workspace).text
     expect(text).toContain('Most-used exports')
-    expect(text).toContain('function twice(point: Point): number — 2 uses')
+    expect(text).toContain('function twice(point: Point): number — 2 uses — Doubles the coordinate.')
     expect(text).toContain('type Point')
     expect(text).not.toContain('total')
   })

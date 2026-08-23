@@ -115,6 +115,38 @@ describe('extractSymbols', () => {
     expect(inner?.line).toBe(8)
   })
 
+  it('extracts the first doc-comment line, statement comments included', () => {
+    const documented = parse(
+      `${ROOT}/packages/demo/src/doc.ts`,
+      [
+        '// File header, separated by a blank line.',
+        '',
+        '// Doubles the value.',
+        '// Second line is not the doc line.',
+        'export const twice = (value: number): number => value * 2',
+        '',
+        '/** Greets by name. */',
+        'export function greet(name: string): string { return name }',
+        '',
+        'export const bare = 1',
+        '',
+      ].join('\n'),
+    )
+    const byName = new Map(extractSymbols(ROOT, documented).map((symbol) => [symbol.name, symbol]))
+    expect(byName.get('twice')?.docLine).toBe('Doubles the value.')
+    expect(byName.get('greet')?.docLine).toBe('Greets by name.')
+    expect(byName.get('bare')?.docLine).toBeUndefined()
+  })
+
+  it('does not give the file header to the first declaration as its doc', () => {
+    const headerOnly = parse(
+      `${ROOT}/packages/demo/src/header.ts`,
+      '// A file header.\n\nexport const first = 1\n',
+    )
+    const first = extractSymbols(ROOT, headerOnly).find((symbol) => symbol.name === 'first')
+    expect(first?.docLine).toBeUndefined()
+  })
+
   it('returns symbols in source order', () => {
     const starts = symbols.map((symbol) => symbol.span.start)
     expect([...starts].sort((a, b) => a - b)).toEqual(starts)
