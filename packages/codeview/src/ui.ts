@@ -320,11 +320,18 @@ const clientScript = `
     return cut < 0 ? String(symbolId) : String(symbolId).slice(0, cut);
   }
 
+  // The server reports failures as { error } JSON bodies, so read the body either way
+  // and prefer its message over the bare status line.
   function getJson(url) {
     return fetch(url)
       .then(function (response) {
-        if (!response.ok) return { ok: false, error: response.status + ' ' + response.statusText + ' (' + url + ')' };
-        return response.json().then(function (data) { return { ok: true, data: data }; });
+        return response.json().catch(function () { return null; }).then(function (data) {
+          if (!response.ok) {
+            var detail = data && data.error ? data.error : response.status + ' ' + response.statusText;
+            return { ok: false, error: detail + ' (' + url + ')' };
+          }
+          return { ok: true, data: data };
+        });
       })
       .catch(function (error) { return { ok: false, error: String(error && error.message ? error.message : error) }; });
   }
