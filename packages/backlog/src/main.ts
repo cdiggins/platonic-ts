@@ -72,9 +72,9 @@ const backfill = async (): Promise<void> => {
   )
 }
 
-// Archiving is a deliberate, reviewable step rather than a side effect of
-// regen: it rewrites paths in git history, which nobody should trigger by
-// accident while rebuilding a generated table.
+// An item already in the archive is recognised by the directory it was loaded
+// from — `loadBacklog` reports the path it read, and nothing in the file
+// itself records where it lives.
 const isArchived = (item: BacklogItem): boolean =>
   basename(dirname(item.file)) === archiveDirName
 
@@ -100,6 +100,9 @@ const moveToArchive = async (item: BacklogItem): Promise<string> => {
   return `${name}${moved ? '' : ' (renamed; git mv failed)'}`
 }
 
+// Archiving is its own command rather than a step inside regen: it moves files
+// and stages renames in git, which nobody should trigger by accident while
+// rebuilding a generated table. Running it twice is a no-op.
 const archive = async (): Promise<void> => {
   const items = await loadBacklog(backlogDir)
   const closed = items.filter((item) => !isOpen(item) && !isArchived(item))

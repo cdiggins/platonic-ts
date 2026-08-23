@@ -2,14 +2,14 @@
 id: BL-0023
 title: Move closed items to backlog/archive/ so the live backlog stays small
 type: feature
-status: idea
+status: done
 priority: "?"
 effort: S
 risk: low
 area: packages/backlog
 sprint:
 created: 2026-08-23
-closed:
+closed: 2026-08-23
 links: [packages/backlog/src/index.ts, packages/backlog/src/main.ts, packages/core/src/index.ts, decisions/2026-08-22-adopt-workquarry-format.md]
 ---
 
@@ -78,12 +78,12 @@ becomes invisible to exactly the code that must not reuse an id.
 
 ## Done means
 
-- [ ] Closed items live in `backlog/archive/` and `backlog/` holds only open work
-- [ ] `loadBacklog` finds archived items, so `backlog/DONE.md` is unchanged by the move and
+- [x] Closed items live in `backlog/archive/` and `backlog/` holds only open work
+- [x] `loadBacklog` finds archived items, so `backlog/DONE.md` is unchanged by the move and
       no id can be reused
-- [ ] Archiving is an explicit, reviewable step, not a silent side effect of regen
-- [ ] The three track-* skills' id-allocation wording accounts for the archive directory
-- [ ] `npm run check` green
+- [x] Archiving is an explicit, reviewable step, not a silent side effect of regen
+- [x] The three track-* skills' id-allocation wording accounts for the archive directory
+- [x] `npm run check` green
 
 ## Simplest possible implementation
 

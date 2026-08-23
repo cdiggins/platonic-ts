@@ -234,10 +234,13 @@ If a track needs something outside its fence (a dependency, a contract change), 
 the smallest unblocking change by appending to [NOTES.md](../NOTES.md) rather than editing
 supervisor-owned files.
 
-Two waves have run so far. Wave 1 (transcripts, backlog, dashboard) integrated with zero merge
-conflicts and a green gate on the first run. Wave 2 (the check runner, dashboard polish, lint
-cleanup) surfaced the findings recorded in NOTES.md. Per-track token costs and what worked are
-logged there after every wave.
+Waves 1 through 5 have run so far. Wave 1 (transcripts, backlog, dashboard) integrated with
+zero merge conflicts and a green gate on the first run. Wave 2 (the check runner, dashboard
+polish, lint cleanup) surfaced the findings recorded in NOTES.md. Waves 3 and 4 ran
+concurrently on the same tree — the code overview browser, and the tooling wave. The number 5
+was then used twice, once for the dashboard views and once for the eight-track wave that built
+the MCP server's refactoring tools, so the labels stop at 5 while the runs do not. Per-track
+token costs and what worked are logged in NOTES.md after every wave.
 
 ### NOTES.md as a deliverable
 

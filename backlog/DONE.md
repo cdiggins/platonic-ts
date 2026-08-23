@@ -8,6 +8,7 @@ items only ever join this list, never leave it, so it behaves as an event log.
 - 2026-08-23 — [BL-0016](BL-0016-code-overview-browser.md) — Build a code overview browser separate from the observability dashboard — done
 - 2026-08-23 — [BL-0026](BL-0026-mcp-server.md) — MCP server for mechanical coding tasks — done
 - 2026-08-23 — [BL-0027](BL-0027-size-distribution-stats.md) — Report distribution statistics for function, expression, and statement size — done
+- 2026-08-23 — [BL-0023](BL-0023-archive-closed-items.md) — Move closed items to backlog/archive/ so the live backlog stays small — done
 - 2026-08-22 — [BL-0001](BL-0001-platonic-check.md) — Build platonic check package — done
 - 2026-08-22 — [BL-0006](BL-0006-dashboard.md) — Live observability dashboard — done
 - 2026-08-22 — [BL-0002](BL-0002-escape-hatch.md) — Escape-hatch ratchet — done

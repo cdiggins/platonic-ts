@@ -448,7 +448,84 @@ Body`
     expect(items.map((i) => i.priority)).toEqual(['p1', 'p2', 'p3'])
   })
 
-  it('does not recurse into subdirectories', async () => {
+  it('finds items in the archive subdirectory', async () => {
+    await fs.mkdir(join(tempDir, 'archive'))
+    const liveContent = `---
+id: BL-0001
+title: Live
+status: ready
+---
+Body`
+    const archivedContent = `---
+id: BL-0002
+title: Archived
+status: done
+closed: 2026-08-23
+---
+Body`
+    await fs.writeFile(join(tempDir, 'BL-0001-live.md'), liveContent)
+    await fs.writeFile(join(tempDir, 'archive', 'BL-0002-archived.md'), archivedContent)
+
+    const items = await loadBacklog(tempDir)
+    expect(items.map((i) => i.id)).toEqual(['BL-0001', 'BL-0002'])
+  })
+
+  it('lists an archived done item in the done log', async () => {
+    await fs.mkdir(join(tempDir, 'archive'))
+    const archivedContent = `---
+id: BL-0002
+title: Archived task
+status: done
+closed: 2026-08-23
+---
+Body`
+    await fs.writeFile(join(tempDir, 'archive', 'BL-0002-archived.md'), archivedContent)
+
+    const log = buildDoneLog(await loadBacklog(tempDir))
+    expect(log).toContain('BL-0002')
+    expect(log).toContain('Archived task')
+    // Linked by filename, so the entry reads the same whether or not the item
+    // has been moved into the archive.
+    expect(log).toContain('(BL-0002-archived.md)')
+  })
+
+  it('leaves the open-item table unaffected by archived items', async () => {
+    await fs.mkdir(join(tempDir, 'archive'))
+    const liveContent = `---
+id: BL-0001
+title: Live
+status: ready
+---
+Body`
+    await fs.writeFile(join(tempDir, 'BL-0001-live.md'), liveContent)
+    const withoutArchive = buildBacklogTable(await loadBacklog(tempDir))
+
+    const archivedContent = `---
+id: BL-0002
+title: Archived
+status: done
+closed: 2026-08-23
+---
+Body`
+    await fs.writeFile(join(tempDir, 'archive', 'BL-0002-archived.md'), archivedContent)
+
+    expect(buildBacklogTable(await loadBacklog(tempDir))).toBe(withoutArchive)
+  })
+
+  it('ignores a missing archive subdirectory', async () => {
+    const content = `---
+id: BL-0001
+title: Live
+status: ready
+---
+Body`
+    await fs.writeFile(join(tempDir, 'BL-0001-live.md'), content)
+
+    const items = await loadBacklog(tempDir)
+    expect(items).toHaveLength(1)
+  })
+
+  it('does not recurse into subdirectories other than archive', async () => {
     const subdir = join(tempDir, 'subdir')
     await fs.mkdir(subdir)
 

@@ -6,7 +6,9 @@ argument-hint: [status | triage | promote <id> | sprint plan <name> | sprint sho
 
 # track-backlog — query and manage the backlog
 
-Item frontmatter (`backlog/BL-XXXX-*.md`) is the database; `backlog/BACKLOG.md` is a
+Item frontmatter is the database — `backlog/BL-XXXX-*.md` for open work plus
+`backlog/archive/BL-XXXX-*.md` for closed work, and any question about the full item set
+(ids in use, prior art) must cover both directories. `backlog/BACKLOG.md` is a
 generated view — never hand-edit it or `backlog/DONE.md`. Edit item frontmatter directly,
 then run `npm run backlog:regen` (calls `buildBacklogTable`/`buildDoneLog` in
 `packages/backlog/src/index.ts` via `packages/backlog/src/main.ts`). Process reference:
@@ -59,7 +61,9 @@ List items whose `sprint:` field matches the given name (`Grep` frontmatter or f
 started.
 
 ## Queries agents can use directly
-`Grep`/read `backlog/BACKLOG.md` for open items, or scan `backlog/*.md` frontmatter for:
+`Grep`/read `backlog/BACKLOG.md` for open items, or scan `backlog/*.md` frontmatter (add
+`backlog/archive/*.md` when the question includes closed items — ids in use, for instance)
+for:
 ```
 type: debt
 status: ready
@@ -73,5 +77,7 @@ area: dashboard
   first (exception: filing brand-new items via `/track-idea` or `/track-issue`, where the
   filer sets initial values).
 - Closing items: set `status: done` (or `dropped`) + `closed: <date>` on the item, run
+  `npm run backlog:archive` to move it into `backlog/archive/` and then
   `npm run backlog:regen`, and mention the item's id in the closing commit message so git
-  history and backlog state stay joined.
+  history and backlog state stay joined. Archiving is a separate command on purpose — regen
+  never moves files.
