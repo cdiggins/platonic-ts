@@ -2,14 +2,14 @@
 id: BL-0012
 title: Show skill and tool invocation history in dashboard
 type: idea
-status: in-progress
+status: done
 priority: "?"
 effort: "?"
 risk: "?"
 area: dashboard
 sprint:
 created: 2026-08-22
-closed:
+closed: 2026-08-22
 links: [BL-0004, BL-0007]
 ---
 

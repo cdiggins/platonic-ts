@@ -2,14 +2,14 @@
 id: BL-0013
 title: Pie charts for usage/backlog breakdowns, live-updating
 type: idea
-status: idea
+status: done
 priority: "?"
 effort: "?"
 risk: "?"
 area: dashboard
 sprint:
 created: 2026-08-22
-closed:
+closed: 2026-08-22
 links: [BL-0008]
 ---
 

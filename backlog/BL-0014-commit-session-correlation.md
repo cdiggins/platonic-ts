@@ -2,14 +2,14 @@
 id: BL-0014
 title: Correlate git commits to agent sessions in dashboard
 type: idea
-status: in-progress
+status: done
 priority: "?"
 effort: "?"
 risk: "?"
 area: dashboard
 sprint:
 created: 2026-08-22
-closed:
+closed: 2026-08-22
 links: []
 ---
 
