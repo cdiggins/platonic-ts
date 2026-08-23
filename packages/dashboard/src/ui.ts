@@ -3,21 +3,9 @@
 
 import { DEFAULT_USAGE_RANGE, USAGE_RANGES, usageRangeLabel } from './range.ts'
 import { PIE_PALETTE } from './pie.ts'
+import { PAGER_CLIENT_SCRIPT, pagerMarkup, pagerStyles } from './paging.ts'
 
 const pieColorsJson = JSON.stringify(PIE_PALETTE)
-
-// Agent rows are paged: a long-lived repo accumulates hundreds of transcripts,
-// and only the recent ones say anything about what is running now. Page 1 is
-// the most recently active; the rest stay reachable through the pager.
-const AGENT_PAGE_SIZES = [10, 25, 50, 0] as const
-const DEFAULT_AGENT_PAGE_SIZE = 25
-
-const agentPageSizeLabel = (n: number): string => (n === 0 ? 'all' : `${n} per page`)
-
-const agentPageSizeOptionsHtml = AGENT_PAGE_SIZES.map(
-  (n) =>
-    `<option value="${n}"${n === DEFAULT_AGENT_PAGE_SIZE ? ' selected' : ''}>${agentPageSizeLabel(n)}</option>`,
-).join('')
 
 const rangeOptionsHtml = USAGE_RANGES.map(
   (r) =>
@@ -26,6 +14,8 @@ const rangeOptionsHtml = USAGE_RANGES.map(
 
 const clientScript = `
 (function () {
+${PAGER_CLIENT_SCRIPT}
+
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
@@ -141,27 +131,10 @@ const clientScript = `
   }
 
   var lastSnapshot = null;
-  var agentPage = 0;
 
-  function agentPageSize() {
-    var sel = document.getElementById('agent-page-size');
-    return sel ? Number(sel.value) : ${DEFAULT_AGENT_PAGE_SIZE};
-  }
-
-  function renderAgentPager(start, shownCount, total, pageCount) {
-    var countEl = document.getElementById('agent-count');
-    if (countEl) {
-      countEl.textContent = total === 0
-        ? '0 agents'
-        : (start + 1) + '-' + (start + shownCount) + ' of ' + total + ', most recent first';
-    }
-    var pageEl = document.getElementById('agent-page');
-    if (pageEl) pageEl.textContent = 'page ' + (agentPage + 1) + ' of ' + pageCount;
-    var prev = document.getElementById('agent-prev');
-    var next = document.getElementById('agent-next');
-    if (prev) prev.disabled = agentPage === 0;
-    if (next) next.disabled = agentPage >= pageCount - 1;
-  }
+  var agentPager = createPager('agents', 'agents', function () {
+    if (lastSnapshot) render(lastSnapshot);
+  });
 
   function render(snapshot) {
     lastSnapshot = snapshot;
@@ -177,15 +150,7 @@ const clientScript = `
     var byRecency = snapshot.agents.slice().sort(function (a, b) {
       return b.lastActivityAt - a.lastActivityAt;
     });
-    var size = agentPageSize();
-    var perPage = size === 0 ? Math.max(byRecency.length, 1) : size;
-    var pageCount = Math.max(1, Math.ceil(byRecency.length / perPage));
-    // Transcripts appear and disappear between pushes; keep the page in range.
-    agentPage = Math.min(Math.max(agentPage, 0), pageCount - 1);
-    var start = agentPage * perPage;
-    var shown = byRecency.slice(start, start + perPage);
-    renderAgentPager(start, shown.length, byRecency.length, pageCount);
-    shown.forEach(function (a) {
+    agentPager.slice(byRecency).forEach(function (a) {
       var tr = document.createElement('tr');
       tr.innerHTML =
         '<td><span class="dot ' + (a.active ? 'active' : 'inactive') + '"></span></td>' +
@@ -412,23 +377,6 @@ const clientScript = `
     };
   }
 
-  function stepAgentPage(delta) {
-    agentPage = Math.max(0, agentPage + delta);
-    if (lastSnapshot) render(lastSnapshot);
-  }
-
-  var agentPageSizeSelect = document.getElementById('agent-page-size');
-  if (agentPageSizeSelect) {
-    agentPageSizeSelect.addEventListener('change', function () {
-      agentPage = 0;
-      if (lastSnapshot) render(lastSnapshot);
-    });
-  }
-  var agentPrev = document.getElementById('agent-prev');
-  if (agentPrev) agentPrev.addEventListener('click', function () { stepAgentPage(-1); });
-  var agentNext = document.getElementById('agent-next');
-  if (agentNext) agentNext.addEventListener('click', function () { stepAgentPage(1); });
-
   var rangeSelect = document.getElementById('range-select');
   connect(rangeSelect ? rangeSelect.value : 'today');
   if (rangeSelect) {
@@ -496,19 +444,7 @@ export const renderPage = (): string => `<!doctype html>
     border-radius: 4px;
     padding: 3px 6px;
   }
-  .pager { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .pager-btn {
-    font-family: inherit;
-    font-size: 12px;
-    background: #161b22;
-    color: #8ab4f8;
-    border: 1px solid #263043;
-    border-radius: 4px;
-    padding: 3px 10px;
-    cursor: pointer;
-  }
-  .pager-btn:hover:not(:disabled) { border-color: #8ab4f8; }
-  .pager-btn:disabled { color: #4b5468; cursor: default; }
+${pagerStyles}
   #docs-toggle {
     background: none;
     border: none;
@@ -618,17 +554,8 @@ export const renderPage = (): string => `<!doctype html>
   </div>
 
   <section>
-    <h2>Agents
-      <select id="agent-page-size" class="range-select">
-        ${agentPageSizeOptionsHtml}
-      </select>
-      <span class="muted" id="agent-count"></span>
-    </h2>
-    <div class="pager">
-      <button type="button" id="agent-prev" class="pager-btn">&lsaquo; prev</button>
-      <span class="muted" id="agent-page"></span>
-      <button type="button" id="agent-next" class="pager-btn">next &rsaquo;</button>
-    </div>
+    <h2>Agents</h2>
+${pagerMarkup('agents')}
     <table id="agents-table">
       <thead>
         <tr><th></th><th>Label</th><th>Model</th><th>Tool</th><th>Snippet</th><th>In</th><th>Out</th><th>Last activity</th></tr>
