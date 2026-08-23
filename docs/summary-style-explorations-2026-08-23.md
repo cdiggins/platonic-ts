@@ -156,3 +156,71 @@ The design covers the second half of the system: how to stop several AI coding a
 - **Who's in charge when something goes wrong.** The automatic rules do the actual enforcing, a coordinating layer does the planning, and a human is looped in when something needs a judgment call — but critically, the correctness of the whole system never depends on that coordinating layer being up and running.
 
 The document also includes a table of what can go wrong and how each failure is handled, plus a total cost estimate: roughly a week's worth of writing small scripts.
+
+---
+
+## 9. Simplified Technical English
+
+Fence granularity is one design choice. The system uses package-level fences by default. It uses subtree claims for hot spots. File-level fences are rejected until measured need shows they are required. Optimistic no-fence mode is also rejected. The framework's own advisory-rules thesis supports this rejection.
+
+Enforcement point is a second design choice. The system uses a PreToolUse deny hook now. A commit-time audit sits behind this hook. Filesystem ACLs remain in reserve for later use.
+
+Claim store is a third design choice. The system uses an untracked .claims.json file. This file uses atomic renames. It uses a TTL and heartbeat mechanism to detect stale claims.
+
+Gate architecture is a fourth design choice. The system uses two tiers. Lazy per-package watch daemons give attributed per-edit verdicts. A single check script runs at fence release. This script is the sacred, authoritative check.
+
+Verdict attribution is a fifth design choice. The system joins blame data by fence. It applies red-time budgets. It releases fences only on a green-to-green basis.
+
+Test-run integrity is a sixth design choice. The system detects torn verdicts through file-hash comparison. It does not pause the world to detect torn verdicts.
+
+Commit and rollback is a seventh design choice. The system uses tagged, per-agent milestone commits on the main branch. Fences make reverts clean.
+
+Supervision is an eighth design choice. Mechanisms enforce the rules. The supervisor plans the work. A human handles escalation. Correctness does not depend on the supervisor staying alive.
+
+The document also includes a failure-mode table. It includes a cost summary. The estimated cost is roughly one week of small scripts.
+
+---
+
+## 10. Novice developer, no analogies
+
+Fence granularity is decision one. This decision controls how large a piece of code an agent locks before editing it. The chosen default is package-level locking: each agent claims a whole code package before changing files inside it. For unusually busy areas of the codebase, agents can instead claim a smaller unit called a subtree, which is a portion of the file tree below a package. File-level locking, where an agent locks a single file at a time, was considered and rejected for now. It will only be adopted if measurement shows it is actually needed. Also rejected was the option of using no locking at all and simply trusting agents to follow suggested rules without enforcement. That option was turned down because it contradicts the framework's own core argument, which says that advisory rules alone are not reliable enough.
+
+Decision two is the enforcement point. This is the moment in the workflow where the system checks whether an agent is allowed to make a given edit. The chosen mechanism is a PreToolUse deny hook. This means: before any tool call that would edit a file is allowed to run, a hook (a small program that intercepts the action) checks the request and can block it (deny it) if the agent does not hold the right lock. Behind that, as a second layer of protection, the system will also perform an audit at commit time. This means it re-checks the changes at the moment they are committed to git. Filesystem access control lists, meaning permissions set at the operating system level to block file access, are kept as a fallback option rather than adopted now.
+
+Decision three is the claim store. This is where the system keeps records of which agent has locked which package or subtree. The chosen design is a file named .claims.json that is not tracked by git. Updates to this file use atomic renames, meaning a new version of the file is written separately and then swapped in as a single, uninterruptible step, so no agent ever reads a half-written file. Claims also expire using two mechanisms: a time-to-live (TTL), meaning each claim automatically expires after a set period of time, and a heartbeat, meaning the agent holding the claim must periodically signal that it is still active. Together these prevent a claim from staying locked forever if an agent crashes or stalls.
+
+Decision four is the gate architecture, meaning the layered system of checks that verify an agent's changes. The chosen design has two tiers. The first tier is a lazy per-package watch daemon: a background process that starts only when needed and monitors a single package, giving live pass/fail feedback (verdicts) that are attributed to individual edits. The second tier, called the sacred single check script, is one central script that is treated as the ultimate source of truth. It runs whenever a fence is released, meaning whenever an agent finishes and releases its lock on a package or subtree.
+
+Decision five is verdict attribution: figuring out which specific fence (locked unit of code) is responsible for a given pass or fail result. The method chosen matches each failure against the claim records: the system looks at which files the failure comes from and which agent currently holds the lock covering those files. The system also tracks red-time budgets, meaning limits on how long a fence is allowed to remain in a failing (red) state. A fence can only be released, meaning unlocked and handed back, when the code inside it has gone from failing (red) to passing (green) — described as "green-to-green fence release."
+
+Decision six is test-run integrity, meaning making sure a test result reflects the actual current code and not a mix of old and new code. The chosen method is called torn-verdict detection. Instead of pausing all other agents' work while tests run (pause-the-world), the system compares file hashes (unique fingerprints of file contents) before and after the test run to detect whether the code changed underneath the test, which would make the result untrustworthy.
+
+Decision seven is commit and rollback strategy. The system commits each agent's completed work as a separate, tagged milestone commit directly on the main branch. The document notes that the fencing system (the locking described above) is exactly what makes it possible to safely revert (roll back) any one of these commits without affecting the others.
+
+Decision eight is supervision, meaning how a coordinating process oversees the agents. The stated principle is: "mechanisms enforce, supervisor plans, human escalates." This means the technical enforcement mechanisms (hooks, checks, fences) are what actually block bad actions, a supervisor process is responsible for planning work, and a human is brought in only when something needs escalation. Critically, the system's correctness never depends on the supervisor process staying alive or running continuously.
+
+Beyond these eight decisions, the document also includes a table listing possible failure modes (ways the system could go wrong) and a cost summary, which estimates that implementing this design would take roughly a week of writing small scripts.
+
+---
+
+## 11. Experienced developer, no jargon or shorthand
+
+Multi-agent code editing raises a coordination problem: several agents can modify the same files at once and clobber each other's work. The design breaks this into eight decisions, each weighed against alternatives.
+
+First, what unit of code an agent locks before editing: by default, a whole package, with the option to lock a specific subtree of files for high-traffic areas. Locking at the individual file level is rejected until there's measured evidence it's needed, and letting agents edit without any locking is rejected too, based on the framework's own argument that advisory rules aren't reliable enough on their own.
+
+Second, where the lock is enforced: a Claude Code PreToolUse hook that can deny a file edit before it happens is the enforcement point for now, with a check run at commit time as a backup, and filesystem permissions held in reserve as a further option if needed.
+
+Third, how locks are tracked: an untracked `.claims.json` file, written using atomic renames so it's never left in a half-written state, with a time-to-live plus a heartbeat mechanism so a lock isn't held forever if the agent holding it dies or hangs.
+
+Fourth, how checks are structured: a two-tier setup. Lightweight per-package watcher processes run continuously to give each agent fast, individual pass/fail feedback as it edits. Then there's one single, authoritative check script that runs when a lock is released, and its result is the one that's trusted.
+
+Fifth, how a pass/fail result is tied back to the agent responsible: by joining the result to whichever lock was active at the time, tracking how long code stays in a failing state against a budget, and only releasing a lock once the check has gone from passing to passing again.
+
+Sixth, ensuring a test run is actually measuring the code it claims to: detecting a test result that no longer corresponds to the current code (by comparing file hashes before and after) rather than blocking all other edits while tests run.
+
+Seventh, commits and rollbacks: each agent's completed unit of work is committed directly to main with a tag identifying which agent and milestone it belongs to; the locking scheme is specifically what keeps those reverts clean, since a locked unit of work has no overlapping edits from other agents to conflict with.
+
+Eighth, oversight: automated mechanisms do the enforcement, a supervisor process does the planning, and a human is looped in when something needs escalation — but correctness never depends on the supervisor staying up.
+
+The document also includes a table of failure modes and a cost estimate of roughly a week of small scripts to build.
