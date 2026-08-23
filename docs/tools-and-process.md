@@ -153,6 +153,30 @@ renderers, and the feedback sink and is the only place filesystem access lives. 
 pure — source text plus symbols in, HTML out — which is why the tokeniser and the markdown
 renderer are unit-testable without a browser.
 
+### `npm run transcripts` — session-corpus analyzer
+
+Answers "where did the tokens go?" over the Claude Code session transcripts of a project.
+Reads the JSONL corpus under `~/.claude/projects/<project-slug>` (deduplicating resumed
+sessions by message uuid) and prints tables with exact byte counts, rough token estimates
+(bytes/4, always shown alongside the API-reported exact totals), and percentage shares.
+
+Views, selected by the first argument: `composition` (default — what the context is made
+of: assistant prose, thinking, tool-call arguments, tool results, typed vs injected user
+text, plus API token totals), `sessions` (per-session timeline and cost), `tools`
+(per-tool calls, argument bytes, result bytes attributed back by `tool_use_id`), `models`,
+`skills` (Skill invocations and slash-command counts), `files` (per-file read/write cost —
+what each file's reads pulled into context, and the ceiling saved if the file were halved),
+`grep "<regex>"` (matching user messages with the output tokens spent answering each), and
+`all`. Flags: `--dir <path>` to point at another project's corpus, `--sidechain` to include
+subagent transcripts, `--json` for machine-readable output.
+
+The findings that motivated it are recorded in
+[BL-0022](../backlog/BL-0022-caveman-final-answer-clarity.md): assistant prose — the only
+slice a terse output style can compress — measures 1.7–3.1% of billed output tokens across
+five real corpora, while tool results dominate content bytes. Parsing and analysis are pure
+functions in `packages/transcripts/src/analyze.ts`; the CLI shell is
+`packages/transcripts/src/main.ts`.
+
 ### The backlog
 
 Work items are one markdown file each in `backlog/`, named `BL-0001-slug.md`, with a small

@@ -2,7 +2,7 @@
 //
 //   npm run transcripts                     # composition (default view)
 //   npm run transcripts -- all              # every view
-//   npm run transcripts -- sessions|tools|models|skills
+//   npm run transcripts -- sessions|tools|models|skills|files
 //   npm run transcripts -- grep "caveman off|speak plain"
 //   npm run transcripts -- --dir <path>     # explicit transcript directory
 //   npm run transcripts -- --sidechain      # include subagent sidechain entries
@@ -19,6 +19,7 @@ import process from 'node:process'
 import {
   compositionTable,
   dedupeEntries,
+  filesTable,
   grepTable,
   modelsTable,
   parseEntry,
@@ -84,6 +85,8 @@ const buildTables = (entries: readonly ParsedEntry[], opts: CliOptions): readonl
       return [modelsTable(entries)]
     case 'skills':
       return [skillsTable(entries)]
+    case 'files':
+      return [filesTable(entries, 30)]
     case 'grep':
       return opts.pattern === undefined
         ? 'grep needs a pattern: transcripts grep "<regex>"'
@@ -95,9 +98,10 @@ const buildTables = (entries: readonly ParsedEntry[], opts: CliOptions): readonl
         toolsTable(entries),
         modelsTable(entries),
         skillsTable(entries),
+        filesTable(entries, 30),
       ]
     default:
-      return `unknown command '${opts.command}' (use composition|sessions|tools|models|skills|grep|all)`
+      return `unknown command '${opts.command}' (use composition|sessions|tools|models|skills|files|grep|all)`
   }
 }
 

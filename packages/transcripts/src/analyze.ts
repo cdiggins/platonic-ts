@@ -49,6 +49,7 @@ export type ParsedEntry = {
     readonly inputBytes: number
     readonly id: string | undefined
     readonly skill: string | undefined
+    readonly filePath: string | undefined
   }[]
   // tool_result blocks in user entries, so result bytes can be attributed to the
   // tool call (matched by tool_use_id) at corpus level.
@@ -147,6 +148,7 @@ export const parseEntry = (file: string, line: string): ParsedEntry | undefined 
           inputBytes: utf8Bytes(JSON.stringify(b.input ?? {})),
           id: asString(b.id),
           skill: asString(b.name) === 'Skill' ? asString(input.skill) : undefined,
+          filePath: asString(input.file_path) ?? asString(input.path) ?? asString(input.notebook_path),
         }
       })
 
@@ -387,6 +389,58 @@ export const toolsTable = (entries: readonly ParsedEntry[]): Table => {
     notes: [
       'arg bytes count toward output tokens (model writes them); result bytes toward input/cache',
       '(unmatched) = tool_result blocks whose tool_use_id has no visible tool_use (e.g. truncated files)',
+    ],
+  }
+}
+
+// Per-file cost: what each file's reads pulled into context and each write/edit cost
+// in output tokens. Answers "how much do big source files cost?" — the halving ceiling
+// is read-result bytes / 2, since a file half the size returns half the bytes per Read.
+export const filesTable = (entries: readonly ParsedEntry[], limit: number): Table => {
+  const calls = entries.flatMap((e) => e.tools).filter((t) => t.filePath !== undefined)
+  const resultBytesById = new Map(
+    entries
+      .flatMap((e) => e.results)
+      .filter((r) => r.toolUseId !== undefined)
+      .map((r) => [r.toolUseId, r.bytes] as const),
+  )
+
+  const paths = [...new Set(calls.map((t) => t.filePath))]
+  const scored = paths
+    .map((path) => {
+      const group = calls.filter((t) => t.filePath === path)
+      const reads = group.filter((t) => t.name === 'Read')
+      const writes = group.filter((t) => t.name === 'Write' || t.name === 'Edit' || t.name === 'NotebookEdit')
+      const readResultBytes = reads.reduce(
+        (sum, t) => sum + (t.id !== undefined ? (resultBytesById.get(t.id) ?? 0) : 0),
+        0,
+      )
+      const writeArgBytes = writes.reduce((sum, t) => sum + t.inputBytes, 0)
+      return { path: path ?? '', reads: reads.length, writes: writes.length, readResultBytes, writeArgBytes }
+    })
+    .filter((f) => f.readResultBytes + f.writeArgBytes > 0)
+    .sort((a, b) => b.readResultBytes + b.writeArgBytes - (a.readResultBytes + a.writeArgBytes))
+
+  const shown = scored.slice(0, limit)
+  const totalRead = scored.reduce((sum, f) => sum + f.readResultBytes, 0)
+  const rows = shown.map((f) => [
+    f.path.length > 60 ? `…${f.path.slice(-59)}` : f.path,
+    fmtInt(f.reads),
+    fmtInt(f.readResultBytes),
+    fmtInt(estTokens(f.readResultBytes)),
+    fmtInt(f.writes),
+    fmtInt(estTokens(f.writeArgBytes)),
+    fmtInt(estTokens(f.readResultBytes / 2)),
+  ])
+
+  return {
+    title: `Per-file cost, top ${shown.length} of ${scored.length} files`,
+    columns: ['file', 'reads', 'read bytes', 'read est tok', 'writes', 'write est tok', 'halving saves'],
+    rows,
+    notes: [
+      `total read-result bytes across all files: ${fmtInt(totalRead)} (${fmtInt(estTokens(totalRead))} est tokens); halving every file would save ~${fmtInt(estTokens(totalRead / 2))} est input tokens as a ceiling`,
+      'ceiling assumes each Read returns proportionally less; ranged reads (offset/limit) and Grep hits break that proportionality',
+      'read bytes land in input/cache and are re-read every later turn of the session; write est tok are output tokens',
     ],
   }
 }

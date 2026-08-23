@@ -18,7 +18,11 @@ job, and the boundary is explained in
 separate tool now exists: a code overview browser (`npm run codeview`, port 4848) that indexes
 the repository's own TypeScript with the compiler API and serves syntax-coloured source with
 go-to-definition, find-references, rendered markdown, per-function and per-folder quality
-metrics, and a feedback box that files backlog items. The [Documents](#documents) section indexes
+metrics, and a feedback box that files backlog items. A session-corpus analyzer
+(`npm run transcripts`) reports where tokens went across a project's Claude Code transcripts —
+context composition, per-tool and per-file cost, skill usage — documented in
+[Tools, Skills, and Process](docs/tools-and-process.md#npm-run-transcripts--session-corpus-analyzer).
+The [Documents](#documents) section indexes
 the design notes. The tools, skills, and multi-agent process are documented for humans in
 [Tools, Skills, and Process](docs/tools-and-process.md). The backlog now follows the
 [WorkQuarry](https://github.com/ara3d/workquarry) issue-tracking schema, implemented natively
