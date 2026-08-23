@@ -6,6 +6,12 @@
 // metrics come from `packages/codemap/src/metrics.ts` and the escape-hatch
 // classification is the one `packages/check/src/ratchet.ts` uses, so the MCP
 // server and `platonic check` can never disagree about what a hatch is.
+//
+// PS-056: this file is over PS-024's 300-line budget. Four unrelated tools were
+// assigned to one file by the Wave 5 fence table, and splitting them is the
+// supervisor's call at integration — `symbol_diff` and `escape_hatch_index` in
+// particular share nothing but the workspace. The natural split is one module
+// per tool, or `inspect.ts` (metrics + hatches) beside `diff.ts` (delete + diff).
 import ts from 'typescript'
 import type { CodeMetrics, SymbolInfo } from '../../core/src/index.ts'
 import { fileMetrics, functionMetrics } from '../../codemap/src/metrics.ts'
@@ -28,9 +34,7 @@ const tsFilesOf = (workspace: Workspace, folder: string | undefined): readonly s
 const symbolsOfFile = (workspace: Workspace, file: string): readonly SymbolInfo[] =>
   workspace.index.symbols.filter((symbol) => symbol.file.toLowerCase() === file.toLowerCase())
 
-// ---------------------------------------------------------------------------
-// symbol_metrics — is this declaration worth refactoring?
-// ---------------------------------------------------------------------------
+// --- symbol_metrics: is this declaration worth refactoring? ---------------
 
 // `statements` stands in for a branch count: `CodeMetrics` has no branch field,
 // and inventing one here would put a second counter beside the one the code
@@ -81,9 +85,7 @@ export const symbolMetrics = (
   }
 }
 
-// ---------------------------------------------------------------------------
-// escape_hatch_index — every `any`, `as`, `!`, and suppression comment
-// ---------------------------------------------------------------------------
+// --- escape_hatch_index: every `any`, `as`, `!`, and suppression comment ---
 
 type Hatch = {
   readonly file: string
@@ -246,9 +248,7 @@ export const escapeHatchIndex = (workspace: Workspace, folder: string | undefine
   }
 }
 
-// ---------------------------------------------------------------------------
-// delete_symbol — remove a declaration, or explain why that is unsafe
-// ---------------------------------------------------------------------------
+// --- delete_symbol: remove a declaration, or explain why that is unsafe ----
 
 const moduleBase = (specifier: string): string =>
   specifier.replace(/['"]/g, '').split('/').slice(-1)[0]?.replace(/\.(ts|tsx|js|mjs)$/, '') ?? ''
@@ -333,9 +333,7 @@ export const deleteSymbol = (
   }
 }
 
-// ---------------------------------------------------------------------------
-// symbol_diff — what changed, by declaration rather than by line
-// ---------------------------------------------------------------------------
+// --- symbol_diff: what changed, by declaration rather than by line --------
 
 type Decl = {
   readonly file: string
