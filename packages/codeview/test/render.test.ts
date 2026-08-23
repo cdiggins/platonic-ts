@@ -67,6 +67,13 @@ describe('highlightTypeScript', () => {
     }
   })
 
+  it('handles a file far larger than the call stack', () => {
+    const big = 'const alpha = 1\n'.repeat(5000)
+    const tokens = highlightTypeScript(big)
+    expect(tokens.map((token) => token.text).join('')).toBe(big)
+    expect(renderSourceHtml(big, noSymbols, []).match(/class="code-line"/g)?.length).toBe(5000)
+  })
+
   it('classifies keywords, strings, numbers, comments and identifiers', () => {
     const snippet = "const alpha = 'text' // note\nconst count = 42\n"
     expect(classOf(snippet, 'const')).toBe('keyword')
@@ -224,6 +231,12 @@ describe('renderMarkdown', () => {
 
   it('handles CRLF input identically to LF', () => {
     expect(renderMarkdown('# T\r\n\r\n- a\r\n')).toBe(renderMarkdown('# T\n\n- a\n'))
+  })
+
+  it('handles a document with more blocks than the call stack has frames', () => {
+    const html = renderMarkdown('para\n\n- item\n\n'.repeat(5000))
+    expect(html.match(/<p>para<\/p>/g)?.length).toBe(5000)
+    expect(html.match(/<li>item<\/li>/g)?.length).toBe(5000)
   })
 
   it('renders a real repo document with every supported construct', () => {

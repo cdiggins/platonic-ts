@@ -41,6 +41,11 @@ export const escapeHtml = (text: string): string =>
             : '&#39;',
   )
 
+const takeWhile = <T>(items: readonly T[], keep: (item: T) => boolean): readonly T[] => {
+  const stop = items.findIndex((item) => !keep(item))
+  return stop === -1 ? items : items.slice(0, stop)
+}
+
 // ---------------------------------------------------------------------------
 // TypeScript tokenising
 // ---------------------------------------------------------------------------
@@ -98,36 +103,65 @@ const classifyToken = (kind: ts.SyntaxKind, previous: ts.SyntaxKind | undefined)
               ? 'punctuation'
               : 'plain'
 
-const tailToken = (source: string, cursor: number): readonly HighlightToken[] =>
-  cursor < source.length ? [{ text: source.slice(cursor), class: 'plain', start: cursor }] : []
+type RawToken = { readonly kind: ts.SyntaxKind; readonly start: number; readonly end: number }
 
-const scanFrom = (
-  scanner: ts.Scanner,
-  source: string,
-  cursor: number,
-  previous: ts.SyntaxKind | undefined,
-): readonly HighlightToken[] => {
-  const kind = scanner.scan()
-  const end = Math.min(scanner.getTokenEnd(), source.length)
-  if (kind === ts.SyntaxKind.EndOfFileToken || end <= cursor) return tailToken(source, cursor)
-  const start = Math.max(Math.min(scanner.getTokenFullStart(), end), cursor)
-  const gap: readonly HighlightToken[] =
-    start > cursor ? [{ text: source.slice(cursor, start), class: 'plain', start: cursor }] : []
-  const token: HighlightToken = {
-    text: source.slice(start, end),
-    class: classifyToken(kind, previous),
-    start,
-  }
-  return [...gap, token, ...scanFrom(scanner, source, end, isTrivia(kind) ? previous : kind)]
+// Array.from drives the scanner: a token stream is far longer than the call
+// stack can carry, and pushing into an array is out (PS-004). One token per
+// character is the exact upper bound; everything past end-of-file is dropped.
+const rawTokens = (source: string): readonly RawToken[] => {
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    false,
+    ts.LanguageVariant.Standard,
+    source,
+  )
+  const scanned = Array.from({ length: source.length + 1 }, (): RawToken => {
+    const kind = scanner.scan()
+    return { kind, start: scanner.getTokenFullStart(), end: scanner.getTokenEnd() }
+  })
+  return takeWhile(scanned, (token) => token.kind !== ts.SyntaxKind.EndOfFileToken)
 }
 
-export const highlightTypeScript = (source: string): readonly HighlightToken[] =>
-  scanFrom(
-    ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, source),
-    source,
-    0,
-    undefined,
-  )
+// Bounded look-back: the significant token before a name is at most a few
+// trivia away in real code, and an unbounded search costs more than the
+// heuristic is worth.
+const previousSignificant = (
+  tokens: readonly RawToken[],
+  index: number,
+  budget: number,
+): ts.SyntaxKind | undefined => {
+  const candidate = tokens[index - 1]
+  return candidate === undefined || budget === 0
+    ? undefined
+    : isTrivia(candidate.kind)
+      ? previousSignificant(tokens, index - 1, budget - 1)
+      : candidate.kind
+}
+
+export const highlightTypeScript = (source: string): readonly HighlightToken[] => {
+  const raw = rawTokens(source)
+  const tokens = raw.flatMap((token, index): readonly HighlightToken[] => {
+    const cursor = Math.min(raw[index - 1]?.end ?? 0, source.length)
+    const end = Math.min(token.end, source.length)
+    const start = Math.max(Math.min(token.start, end), cursor)
+    const gap: readonly HighlightToken[] =
+      start > cursor ? [{ text: source.slice(cursor, start), class: 'plain', start: cursor }] : []
+    return end <= cursor
+      ? gap
+      : [
+          ...gap,
+          {
+            text: source.slice(start, end),
+            class: classifyToken(token.kind, previousSignificant(raw, index, 8)),
+            start,
+          },
+        ]
+  })
+  const covered = Math.min(raw[raw.length - 1]?.end ?? 0, source.length)
+  return covered < source.length
+    ? [...tokens, { text: source.slice(covered), class: 'plain', start: covered }]
+    : tokens
+}
 
 // ---------------------------------------------------------------------------
 // Navigable source view
@@ -141,14 +175,43 @@ type SourceLine = {
   readonly end: number
 }
 
+// PS-020: a running offset instead of an accumulating reduce. Rebuilding the
+// list per line is quadratic, and a file view has to stay linear in its input.
 const sourceLines = (source: string): readonly SourceLine[] => {
   const parts = source.split('\n')
   const kept = parts.length > 1 && parts[parts.length - 1] === '' ? parts.slice(0, -1) : parts
-  return kept.reduce<readonly SourceLine[]>((lines, text, index) => {
-    const previous = lines[lines.length - 1]
-    const start = previous === undefined ? 0 : previous.end + 1
-    return [...lines, { number: index + 1, start, end: start + text.length }]
-  }, [])
+  let start = 0
+  return kept.map((text, index) => {
+    const line = { number: index + 1, start, end: start + text.length }
+    start = line.end + 1
+    return line
+  })
+}
+
+// First index whose token starts at or after `offset`, over a token list that
+// is sorted and gap-free.
+const lowerBound = (
+  tokens: readonly HighlightToken[],
+  offset: number,
+  low: number,
+  high: number,
+): number => {
+  if (low >= high) return low
+  const middle = (low + high) >> 1
+  return (tokens[middle]?.start ?? 0) < offset
+    ? lowerBound(tokens, offset, middle + 1, high)
+    : lowerBound(tokens, offset, low, middle)
+}
+
+const tokensOnLine = (
+  tokens: readonly HighlightToken[],
+  line: SourceLine,
+): readonly HighlightToken[] => {
+  const first = Math.max(0, lowerBound(tokens, line.start + 1, 0, tokens.length) - 1)
+  const last = lowerBound(tokens, line.end, first, tokens.length)
+  return tokens
+    .slice(first, Math.max(first, last))
+    .filter((token) => token.start < line.end && token.start + token.text.length > line.start)
 }
 
 const referenceIndex = (references: readonly SymbolReference[]): ReadonlyMap<number, SymbolReference> =>
@@ -191,8 +254,7 @@ const renderLine = (
   tokens: readonly HighlightToken[],
   references: ReadonlyMap<number, SymbolReference>,
 ): string => {
-  const content = tokens
-    .filter((token) => token.start < line.end && token.start + token.text.length > line.start)
+  const content = tokensOnLine(tokens, line)
     .map((token): readonly [HighlightToken, string] => [token, clipToken(token, line)])
     .filter(([, text]) => text !== '')
     .map(([token, text]) => renderToken(token, text, references))
@@ -230,11 +292,6 @@ const QUOTE_RE = /^\s{0,3}>\s?(.*)$/
 const ITEM_RE = /^(\s*)(?:[-*+]|(\d+)[.)])\s+(.*)$/
 const INLINE_RE =
   /`([^`]+)`|!\[([^\]]*)\]\(([^)\s]*)\)|\[([^\]]*)\]\(([^)\s]*)\)|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*]+)\*|_([^_]+)_/g
-
-const takeWhile = <T>(items: readonly T[], keep: (item: T) => boolean): readonly T[] => {
-  const stop = items.findIndex((item) => !keep(item))
-  return stop === -1 ? items : items.slice(0, stop)
-}
 
 // Rendered onto already-escaped text, so quotes cannot break out of the
 // attribute; the scheme check is what stops `javascript:` in untrusted input.
@@ -321,13 +378,19 @@ const parseItem = (line: string): ListItem | undefined => {
       }
 }
 
+// Array.from with a cursor rather than recursion per item: recursion depth here
+// is data-driven, and a long list must not reach the stack limit. Nesting still
+// recurses, and nesting depth is bounded by indentation in practice.
 const renderItems = (items: readonly ListItem[]): string => {
-  const head = items[0]
-  if (head === undefined) return ''
-  const rest = items.slice(1)
-  const children = takeWhile(rest, (item) => item.indent > head.indent)
-  const nested = children.length === 0 ? '' : renderList(children)
-  return `<li>${renderInline(head.text)}${nested}</li>${renderItems(rest.slice(children.length))}`
+  let cursor = 0
+  return Array.from({ length: items.length }, (): string => {
+    const head = items[cursor]
+    if (head === undefined) return ''
+    const children = takeWhile(items.slice(cursor + 1), (item) => item.indent > head.indent)
+    cursor = cursor + 1 + children.length
+    const nested = children.length === 0 ? '' : renderList(children)
+    return `<li>${renderInline(head.text)}${nested}</li>`
+  }).join('')
 }
 
 const renderList = (items: readonly ListItem[]): string => {
@@ -341,58 +404,77 @@ const languageClass = (info: string): string => {
   return safe === '' ? '' : ` class="language-${safe}"`
 }
 
-const renderFence = (info: string, rest: readonly string[]): readonly string[] => {
+// One block plus the number of input lines it swallowed.
+type MarkdownBlock = { readonly html: string; readonly consumed: number }
+
+const fenceBlock = (info: string, rest: readonly string[]): MarkdownBlock => {
   const close = rest.findIndex((line) => FENCE_END_RE.test(line))
   const body = close === -1 ? rest : rest.slice(0, close)
-  const html = `<pre><code${languageClass(info)}>${escapeHtml(body.join('\n'))}</code></pre>`
-  return [html, ...renderMarkdownLines(close === -1 ? [] : rest.slice(close + 1))]
+  return {
+    html: `<pre><code${languageClass(info)}>${escapeHtml(body.join('\n'))}</code></pre>`,
+    consumed: 1 + body.length + (close === -1 ? 0 : 1),
+  }
 }
 
-const renderQuote = (lines: readonly string[]): readonly string[] => {
+const quoteBlock = (lines: readonly string[]): MarkdownBlock => {
   const quoted = takeWhile(lines, (line) => QUOTE_RE.test(line))
   const inner = quoted.map((line) => QUOTE_RE.exec(line)?.[1] ?? '')
-  return [
-    `<blockquote>${renderMarkdownLines(inner).join('')}</blockquote>`,
-    ...renderMarkdownLines(lines.slice(quoted.length)),
-  ]
+  return { html: `<blockquote>${renderBlocks(inner)}</blockquote>`, consumed: quoted.length }
 }
 
-const renderParagraph = (lines: readonly string[]): readonly string[] => {
+const listBlock = (lines: readonly string[]): MarkdownBlock => {
+  const listLines = takeWhile(lines, (line) => ITEM_RE.test(line))
+  const items = listLines.flatMap((line) => {
+    const item = parseItem(line)
+    return item === undefined ? [] : [item]
+  })
+  return { html: renderList(items), consumed: listLines.length }
+}
+
+const paragraphBlock = (lines: readonly string[]): MarkdownBlock => {
   const body = [lines[0] ?? '', ...takeWhile(lines.slice(1), (line) => !isBlockStart(line))]
-  return [
-    `<p>${renderInline(body.join(' ').trim())}</p>`,
-    ...renderMarkdownLines(lines.slice(body.length)),
-  ]
+  return { html: `<p>${renderInline(body.join(' ').trim())}</p>`, consumed: body.length }
 }
 
-const renderMarkdownLines = (lines: readonly string[]): readonly string[] => {
-  const first = lines[0]
-  if (first === undefined) return []
-  if (first.trim() === '') return renderMarkdownLines(lines.slice(1))
+// `lines[0]` is non-blank. Anything unrecognised falls through to a paragraph,
+// where it is escaped as plain text rather than emitted as markup.
+const nextBlock = (lines: readonly string[]): MarkdownBlock => {
+  const first = lines[0] ?? ''
   const rest = lines.slice(1)
   const fence = FENCE_RE.exec(first)
-  if (fence !== null) return renderFence(fence[1] ?? '', rest)
-  if (RULE_RE.test(first)) return ['<hr />', ...renderMarkdownLines(rest)]
+  if (fence !== null) return fenceBlock(fence[1] ?? '', rest)
+  if (RULE_RE.test(first)) return { html: '<hr />', consumed: 1 }
   const heading = HEADING_RE.exec(first)
   if (heading !== null) {
     const level = (heading[1] ?? '#').length
-    return [`<h${level}>${renderInline(heading[2] ?? '')}</h${level}>`, ...renderMarkdownLines(rest)]
+    return { html: `<h${level}>${renderInline(heading[2] ?? '')}</h${level}>`, consumed: 1 }
   }
-  if (QUOTE_RE.test(first)) return renderQuote(lines)
+  if (QUOTE_RE.test(first)) return quoteBlock(lines)
   if (first.includes('|') && isTableDivider(rest[0] ?? '')) {
     const rows = takeWhile(lines, (line) => line.includes('|'))
-    return [renderTable(rows), ...renderMarkdownLines(lines.slice(rows.length))]
+    return { html: renderTable(rows), consumed: rows.length }
   }
-  if (ITEM_RE.test(first)) {
-    const listLines = takeWhile(lines, (line) => ITEM_RE.test(line))
-    const items = listLines.flatMap((line) => {
-      const item = parseItem(line)
-      return item === undefined ? [] : [item]
-    })
-    return [renderList(items), ...renderMarkdownLines(lines.slice(listLines.length))]
-  }
-  return renderParagraph(lines)
+  if (ITEM_RE.test(first)) return listBlock(lines)
+  return paragraphBlock(lines)
+}
+
+// A document has at most one block per line, so Array.from over the lines is an
+// exact upper bound on the number of blocks — and, unlike recursion per block,
+// it costs no stack. Blocks past the end render as '' and drop out.
+const renderBlocks = (lines: readonly string[]): string => {
+  let cursor = 0
+  return Array.from({ length: lines.length }, (): string => {
+    const remaining = lines.slice(cursor)
+    const blank = takeWhile(remaining, (line) => line.trim() === '').length
+    const body = remaining.slice(blank)
+    if (body.length === 0) return ''
+    const block = nextBlock(body)
+    cursor = cursor + blank + Math.max(1, block.consumed)
+    return block.html
+  })
+    .filter((html) => html !== '')
+    .join('\n')
 }
 
 export const renderMarkdown = (markdown: string): string =>
-  renderMarkdownLines(markdown.split('\n').map((line) => line.replace(/\r$/, ''))).join('\n')
+  renderBlocks(markdown.split('\n').map((line) => line.replace(/\r$/, '')))
