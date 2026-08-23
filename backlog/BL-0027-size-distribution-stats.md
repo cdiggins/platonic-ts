@@ -1,15 +1,15 @@
 ---
 id: BL-0027
 title: Report distribution statistics for function, expression, and statement size
-type: idea
-status: idea
-priority: "?"
-effort: "?"
-risk: "?"
+type: feature
+status: done
+priority: p2
+effort: M
+risk: low
 area: codemap
 sprint:
 created: 2026-08-23
-closed:
+closed: 2026-08-23
 links: [BL-0011, BL-0017, BL-0016, BL-0024, docs/small-pure-functions-2026-08-23.md, docs/style-guide.md, packages/codemap/src/metrics.ts]
 ---
 
@@ -157,17 +157,17 @@ observations into `CodeIndex`, which would commit the on-disk index format to a 
 one report needs.
 
 ## Done means
-- [ ] `summarise` returns min, max, mean, median, quartiles (p25/p50/p75), quintiles
+- [x] `summarise` returns min, max, mean, median, quartiles (p25/p50/p75), quintiles
       (p20/p40/p60/p80), p90, p95, p99, and count, for any `readonly number[]`, with the
       percentile convention stated in a comment and covered by unit tests including n=0, n=1,
       and a population where interpolation and nearest-rank disagree.
-- [ ] A report over the current repo prints distributions for function lines, function AST
+- [x] A report over the current repo prints distributions for function lines, function AST
       nodes, and function arity, and the median/p90/p99 figures match a manual spot-check
       against `docs/small-pure-functions-2026-08-23.md`'s methodology.
-- [ ] The same report covers expression and statement node-count populations.
-- [ ] `CodeMetrics` carries an AST node count and `sumMetrics` sums it, with the existing
+- [x] The same report covers expression and statement node-count populations.
+- [x] `CodeMetrics` carries an AST node count and `sumMetrics` sums it, with the existing
       metrics tests still green.
-- [ ] `npm run test`, `npm run typecheck`, `npm run lint`, and `npm run check` all pass with no
+- [x] `npm run test`, `npm run typecheck`, `npm run lint`, and `npm run check` all pass with no
       new escape hatches.
 
 ## Simplest possible implementation
@@ -191,3 +191,33 @@ statement populations arrive in step two, from a `subtreeNodes` walk filtered by
   it duplicates a walk `indexRepo` already does unless it is threaded into that pass.
 - Distributions invite premature budget-setting: "p95 is 34 lines" reads as "34 is the limit",
   which is precisely the invented-threshold move BL-0011 warns against.
+
+## Outcome
+
+Landed in `92d89da` as `npm run stats` (`--json` for the same data).
+`packages/codemap/src/summary.ts` holds the domain-free order statistics,
+`stats.ts` the populations and zones, `report.ts` the table, `main.ts` the CLI.
+The AST walk moved out of `metrics.ts` into `walk.ts`, which both now share.
+
+Two definitions had to be pinned down during the build, neither of them obvious
+at capture time.
+
+**Expressions are compound maximal expressions.** `ts.isExpression` classifies a
+node by its syntax kind, not its position, so every declared name, property
+name, and name inside a type annotation qualifies as an expression of one node.
+Measuring all of them put the median at 1 for every zone. Restricting the
+population to expressions whose parent is not an expression was not enough on
+its own — the names are exactly the nodes with non-expression parents. Requiring
+more than one node removes them without needing `ts.isExpressionNode`, which the
+compiler does not include in its public typings.
+
+**Statements do not double count.** The compiler does not treat a function body
+block as a statement, so a body and the statements inside it never both appear
+in the population. A test asserts this rather than leaving it to be rediscovered.
+
+Measured on the repository at that commit, Core zone: function length median 7,
+p75 14, p90 25, p99 57, max 241 over 510 functions; arity median 2, p90 6;
+compound expression size median 10, p90 63. The hand-measured table in
+`docs/small-pure-functions-2026-08-23.md` agrees on the median and 75th
+percentile and differs in the upper tail, because it counted only top-level
+functions where the tool counts local helpers as well. That doc now says so.
