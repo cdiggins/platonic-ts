@@ -172,6 +172,7 @@ Early design notes. Everything here is a first draft, and nothing is implemented
 * [Testing, Gates, Ratchets, and Goldens](docs/testing-gates-ratchets-goldens-2026-08-22.md) — a taxonomy of mechanical enforcement: what each mechanism claims, when it checks, which direction change may move, and who may bless a change to the claim itself.
 * [Claude Code Integration](docs/claude-code-integration-2026-08-22.md) — which hooks, MCP tools, skills, and agents make sense, placed by one rule: checkable rules become hooks, questions become MCP tools, only the uncheckable residue becomes skills.
 * [An MCP Server for the Mechanical Half of Coding](docs/mcp-server-2026-08-23.md) — what the nine tools do, why text search and text-matching edits are both expensive and wrong, and the measured token cost of each against the conventional tool. (Implemented — unlike the design notes above.)
+* [Questions to Ask Before Writing Code](docs/pre-coding-questions-2026-08-23.md) — what pre-coding questions are for, which ones do not earn their cost, and a three-tier checklist an agent runs against itself, with the triggers that pick the tier.
 
 ## History
 
