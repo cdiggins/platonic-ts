@@ -2,7 +2,7 @@
 id: BL-0021
 title: Vendor parallel-wave skill into repo, adapt, drop worktree framing
 type: idea
-status: idea
+status: in-progress
 priority: "?"
 effort: s
 risk: low
@@ -10,7 +10,7 @@ area: repo
 sprint:
 created: 2026-08-23
 closed:
-links: [docs/tools-and-process.md, docs/worktrees-and-branches-for-agents-2026-08-22.md, AGENTS.md, .claude/skills/track-idea/SKILL.md]
+links: [.claude/skills/parallel-wave/SKILL.md, docs/tools-and-process.md, docs/worktrees-and-branches-for-agents-2026-08-22.md, AGENTS.md, .claude/skills/track-idea/SKILL.md]
 ---
 
 ## Idea
@@ -89,12 +89,12 @@ code.
 
 ## Done means
 
-- [ ] `.claude/skills/parallel-wave/SKILL.md` exists in-repo, adapted (shared checkout
+- [x] `.claude/skills/parallel-wave/SKILL.md` exists in-repo, adapted (shared checkout
       wording, hard no-worktree rule citing docs/worktrees-and-branches doc, npm run check
       as the gate, track-* skills as the findings sink)
 - [ ] Repo copy is the one a session loads (shadowing verified; global copy deleted or
       renamed if it conflicts)
-- [ ] docs/tools-and-process.md §waves and the skill reference each other without
+- [x] docs/tools-and-process.md §waves and the skill reference each other without
       contradiction
 - [ ] Next wave run uses the repo copy without manual steering
 

@@ -163,12 +163,18 @@ exact format is specified in [CONTRACTS.md](../CONTRACTS.md).
 
 ## Skills
 
-Skills are reusable prompt packages installed in Claude Code (they live in the user's
-`~/.claude` configuration, not in this repository). The ones this project actually uses:
+Skills are reusable prompt packages loaded by Claude Code. Process skills this project
+depends on are vendored into `.claude/skills/` so they are versioned with the code;
+general-purpose ones still live in the user's `~/.claude` configuration. The ones this
+project actually uses:
 
-- **parallel-wave** — the multi-agent wave process described below: split a feature into
-  fenced tracks, spawn one subagent per track, integrate and gate. This is the skill that
-  built most of the code here.
+- **parallel-wave** (`.claude/skills/parallel-wave/SKILL.md`) — the multi-agent wave process
+  summarized below: split a feature into fenced tracks, spawn one subagent per track,
+  integrate and gate. The skill file is the operational source of truth (fence table and
+  subagent-prompt templates, the no-worktree rule, the findings sweep); this section is the
+  summary. This is the skill that built most of the code here.
+- **track-idea / track-issue / track-backlog** (`.claude/skills/`) — capture and triage work
+  items in `backlog/`; the sink for findings and debt discovered mid-wave.
 - **caveman** (and its companions `cavecrew`, `caveman-commit`, `caveman-stats`) — an
   ultra-compressed output style that cuts token usage roughly 65% while keeping technical
   content intact. Used for day-to-day interaction and for subagent reports, in service of the
@@ -186,8 +192,10 @@ hooks, questions become MCP tools, and only the uncheckable residue becomes skil
 ### Fenced parallel waves
 
 Features are built in *waves*: a supervisor agent splits the work into tracks that can proceed
-in parallel on one shared checkout (no branches, no worktrees), then spawns one subagent per
-track. Two mechanisms keep them from colliding:
+in parallel on one shared checkout (no branches, no worktrees — wave tracks must not use
+`isolation: worktree`), then spawns one subagent per track. The step-by-step procedure lives
+in `.claude/skills/parallel-wave/SKILL.md`; what follows is the summary. Two mechanisms keep
+tracks from colliding:
 
 - **Fences** — each track has an explicit write-list (glob patterns in
   [CONTRACTS.md](../CONTRACTS.md)); everything else, including `packages/core` and all
