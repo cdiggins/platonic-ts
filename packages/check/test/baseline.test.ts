@@ -6,6 +6,7 @@ import { applyBaseline } from '../src/run.ts'
 import type { RatchetCounts } from '../src/ratchet.ts'
 
 const zero: RatchetCounts = {
+  undocumentedExports: 0,
   explicitAny: 0,
   asCasts: 0,
   nonNullAssertions: 0,

@@ -161,6 +161,9 @@ const tallyOf = (hatches: readonly Hatch[]): RatchetCounts => {
     nonNullAssertions: count('non-null'),
     tsDirectives: count('ts-directive'),
     eslintDisables: count('eslint-disable'),
+    // Not a hatch this tool scans; the baseline comparison copies the
+    // baseline's own value so the axis never affects the verdict here.
+    undocumentedExports: 0,
   }
 }
 
@@ -187,6 +190,9 @@ const readBaseline = (text: string): RatchetCounts | undefined => {
         nonNullAssertions: Number(values[2]),
         tsDirectives: Number(values[3]),
         eslintDisables: Number(values[4]),
+        undocumentedExports: Number(
+          /"undocumentedExports"\s*:\s*(\d+)/.exec(text)?.[1] ?? '0',
+        ),
       }
 }
 
@@ -200,7 +206,10 @@ const baselineLine = (
   const baseline = readBaseline(text)
   if (baseline === undefined)
     return 'ratchet.json is indexed but its counts are unreadable — no baseline to compare against.'
-  const verdict = compareToBaseline(counts, baseline)
+  const verdict = compareToBaseline(
+    { ...counts, undocumentedExports: baseline.undocumentedExports },
+    baseline,
+  )
   const named = verdict.regressions.length === 0 ? '' : `: ${verdict.regressions.join(', ')}`
   const scope = folder === undefined ? '' : ` (baseline covers the whole repository, not ${folder})`
   return `baseline ${totalOf(baseline)} in ratchet.json, counted ${totalOf(counts)} — ${verdict.verdict}${named}${scope}`

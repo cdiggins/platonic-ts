@@ -3,6 +3,7 @@ import { planInit, type InitAction, type InitPlan, type TargetSnapshot } from '.
 import type { RatchetCounts } from '../../check/src/index.ts'
 
 const zero: RatchetCounts = {
+  undocumentedExports: 0,
   explicitAny: 0,
   asCasts: 0,
   nonNullAssertions: 0,

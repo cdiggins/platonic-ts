@@ -3,5 +3,6 @@
   "asCasts": 5,
   "nonNullAssertions": 23,
   "tsDirectives": 1,
-  "eslintDisables": 0
+  "eslintDisables": 0,
+  "undocumentedExports": 274
 }

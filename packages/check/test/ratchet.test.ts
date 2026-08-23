@@ -12,6 +12,7 @@ const zero: RatchetCounts = {
   nonNullAssertions: 0,
   tsDirectives: 0,
   eslintDisables: 0,
+  undocumentedExports: 0,
 }
 
 describe('countEscapeHatches', () => {
@@ -61,9 +62,28 @@ describe('countEscapeHatches', () => {
     expect(counts.eslintDisables).toBe(0)
   })
 
-  it('reports all zero for a clean file', () => {
-    const src = 'export const add = (a: number, b: number): number => a + b'
+  it('reports all zero for a clean, documented file', () => {
+    const src = '// Adds two numbers.\nexport const add = (a: number, b: number): number => a + b'
     expect(countEscapeHatches('f.ts', src)).toEqual(zero)
+  })
+
+  it('counts exported top-level declarations with no doc comment', () => {
+    const src = [
+      '// A file header, detached by a blank line.',
+      '',
+      'export const bare = 1',
+      '',
+      '// Documented.',
+      'export const covered = 2',
+      '',
+      'const internal = 3',
+      '',
+      'export type Bare = { readonly x: number }',
+      '',
+      "export { covered as alias } from './elsewhere.ts'",
+      '',
+    ].join('\n')
+    expect(countEscapeHatches('f.ts', src).undocumentedExports).toBe(2)
   })
 })
 
@@ -77,6 +97,7 @@ describe('sumCounts', () => {
       nonNullAssertions: 1,
       tsDirectives: 1,
       eslintDisables: 2,
+      undocumentedExports: 0,
     })
   })
 

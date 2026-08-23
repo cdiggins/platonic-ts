@@ -91,6 +91,9 @@ const asCounts = (value: JsonObject | undefined): RatchetCounts | undefined => {
     nonNullAssertions: read('nonNullAssertions'),
     tsDirectives: read('tsDirectives'),
     eslintDisables: read('eslintDisables'),
+    // Absent from baselines written before the count existed; read() maps a
+    // missing key to 0, and countKeys keeps such baselines parseable.
+    undocumentedExports: read('undocumentedExports'),
   }
 }
 

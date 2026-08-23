@@ -15,6 +15,7 @@ export type RatchetCounts = {
   readonly nonNullAssertions: number
   readonly tsDirectives: number
   readonly eslintDisables: number
+  readonly undocumentedExports: number
 }
 
 const zero: RatchetCounts = {
@@ -23,6 +24,7 @@ const zero: RatchetCounts = {
   nonNullAssertions: 0,
   tsDirectives: 0,
   eslintDisables: 0,
+  undocumentedExports: 0,
 }
 
 const countKeys: readonly (keyof RatchetCounts)[] = [
@@ -31,6 +33,7 @@ const countKeys: readonly (keyof RatchetCounts)[] = [
   'nonNullAssertions',
   'tsDirectives',
   'eslintDisables',
+  'undocumentedExports',
 ]
 
 export const sumCounts = (counts: readonly RatchetCounts[]): RatchetCounts =>
@@ -41,6 +44,7 @@ export const sumCounts = (counts: readonly RatchetCounts[]): RatchetCounts =>
       nonNullAssertions: acc.nonNullAssertions + c.nonNullAssertions,
       tsDirectives: acc.tsDirectives + c.tsDirectives,
       eslintDisables: acc.eslintDisables + c.eslintDisables,
+      undocumentedExports: acc.undocumentedExports + c.undocumentedExports,
     }),
     zero,
   )
@@ -109,6 +113,42 @@ const collectCommentText = (sourceText: string): string => {
   return collected
 }
 
+const isDeclarationStatement = (statement: ts.Statement): boolean =>
+  ts.isFunctionDeclaration(statement) ||
+  ts.isVariableStatement(statement) ||
+  ts.isTypeAliasDeclaration(statement) ||
+  ts.isInterfaceDeclaration(statement) ||
+  ts.isClassDeclaration(statement) ||
+  ts.isEnumDeclaration(statement) ||
+  ts.isModuleDeclaration(statement)
+
+const isExported = (statement: ts.Statement): boolean =>
+  ts.canHaveModifiers(statement) &&
+  (ts.getModifiers(statement) ?? []).some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+
+// A comment counts as the declaration's doc only when no blank line separates
+// them — the attachment rule the symbol index uses (codemap/src/symbols.ts),
+// which cannot be imported here without a package cycle.
+const hasLeadingDoc = (sourceFile: ts.SourceFile, statement: ts.Statement): boolean => {
+  const ranges = ts.getLeadingCommentRanges(sourceFile.text, statement.getFullStart()) ?? []
+  const last = ranges[ranges.length - 1]
+  return (
+    last !== undefined &&
+    !/\n[ \t]*\r?\n/.test(sourceFile.text.slice(last.end, statement.getStart(sourceFile)))
+  )
+}
+
+// Exported top-level declarations with no comment directly above them, per
+// AGENTS.md "Documenting exports". Re-export lists are not declarations and
+// are not counted.
+const countUndocumentedExports = (sourceFile: ts.SourceFile): number =>
+  sourceFile.statements.filter(
+    (statement) =>
+      isDeclarationStatement(statement) &&
+      isExported(statement) &&
+      !hasLeadingDoc(sourceFile, statement),
+  ).length
+
 export const countEscapeHatches = (fileName: string, sourceText: string): RatchetCounts => {
   const sourceFile = ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true)
   const astCounts = countNode(sourceFile)
@@ -117,5 +157,6 @@ export const countEscapeHatches = (fileName: string, sourceText: string): Ratche
     ...astCounts,
     tsDirectives: countMatches(TS_DIRECTIVE_RE, commentText),
     eslintDisables: countMatches(ESLINT_DISABLE_RE, commentText),
+    undocumentedExports: countUndocumentedExports(sourceFile),
   }
 }
