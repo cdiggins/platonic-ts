@@ -6,16 +6,17 @@ import { PIE_PALETTE } from './pie.ts'
 
 const pieColorsJson = JSON.stringify(PIE_PALETTE)
 
-// Agent rows are capped by default: a long-lived repo accumulates hundreds of
-// transcripts, and only the recent ones say anything about what is running now.
-const AGENT_LIMITS = [10, 25, 50, 0] as const
-const DEFAULT_AGENT_LIMIT = 25
+// Agent rows are paged: a long-lived repo accumulates hundreds of transcripts,
+// and only the recent ones say anything about what is running now. Page 1 is
+// the most recently active; the rest stay reachable through the pager.
+const AGENT_PAGE_SIZES = [10, 25, 50, 0] as const
+const DEFAULT_AGENT_PAGE_SIZE = 25
 
-const agentLimitLabel = (n: number): string => (n === 0 ? 'all' : `top ${n}`)
+const agentPageSizeLabel = (n: number): string => (n === 0 ? 'all' : `${n} per page`)
 
-const agentLimitOptionsHtml = AGENT_LIMITS.map(
+const agentPageSizeOptionsHtml = AGENT_PAGE_SIZES.map(
   (n) =>
-    `<option value="${n}"${n === DEFAULT_AGENT_LIMIT ? ' selected' : ''}>${agentLimitLabel(n)}</option>`,
+    `<option value="${n}"${n === DEFAULT_AGENT_PAGE_SIZE ? ' selected' : ''}>${agentPageSizeLabel(n)}</option>`,
 ).join('')
 
 const rangeOptionsHtml = USAGE_RANGES.map(
@@ -140,10 +141,26 @@ const clientScript = `
   }
 
   var lastSnapshot = null;
+  var agentPage = 0;
 
-  function agentLimit() {
-    var sel = document.getElementById('agent-limit');
-    return sel ? Number(sel.value) : ${DEFAULT_AGENT_LIMIT};
+  function agentPageSize() {
+    var sel = document.getElementById('agent-page-size');
+    return sel ? Number(sel.value) : ${DEFAULT_AGENT_PAGE_SIZE};
+  }
+
+  function renderAgentPager(start, shownCount, total, pageCount) {
+    var countEl = document.getElementById('agent-count');
+    if (countEl) {
+      countEl.textContent = total === 0
+        ? '0 agents'
+        : (start + 1) + '-' + (start + shownCount) + ' of ' + total + ', most recent first';
+    }
+    var pageEl = document.getElementById('agent-page');
+    if (pageEl) pageEl.textContent = 'page ' + (agentPage + 1) + ' of ' + pageCount;
+    var prev = document.getElementById('agent-prev');
+    var next = document.getElementById('agent-next');
+    if (prev) prev.disabled = agentPage === 0;
+    if (next) next.disabled = agentPage >= pageCount - 1;
   }
 
   function render(snapshot) {
@@ -160,14 +177,14 @@ const clientScript = `
     var byRecency = snapshot.agents.slice().sort(function (a, b) {
       return b.lastActivityAt - a.lastActivityAt;
     });
-    var limit = agentLimit();
-    var shown = limit === 0 ? byRecency : byRecency.slice(0, limit);
-    var agentCount = document.getElementById('agent-count');
-    if (agentCount) {
-      agentCount.textContent = shown.length < byRecency.length
-        ? 'showing ' + shown.length + ' of ' + byRecency.length + ', most recent first'
-        : byRecency.length + ' total';
-    }
+    var size = agentPageSize();
+    var perPage = size === 0 ? Math.max(byRecency.length, 1) : size;
+    var pageCount = Math.max(1, Math.ceil(byRecency.length / perPage));
+    // Transcripts appear and disappear between pushes; keep the page in range.
+    agentPage = Math.min(Math.max(agentPage, 0), pageCount - 1);
+    var start = agentPage * perPage;
+    var shown = byRecency.slice(start, start + perPage);
+    renderAgentPager(start, shown.length, byRecency.length, pageCount);
     shown.forEach(function (a) {
       var tr = document.createElement('tr');
       tr.innerHTML =
@@ -395,12 +412,22 @@ const clientScript = `
     };
   }
 
-  var agentLimitSelect = document.getElementById('agent-limit');
-  if (agentLimitSelect) {
-    agentLimitSelect.addEventListener('change', function () {
+  function stepAgentPage(delta) {
+    agentPage = Math.max(0, agentPage + delta);
+    if (lastSnapshot) render(lastSnapshot);
+  }
+
+  var agentPageSizeSelect = document.getElementById('agent-page-size');
+  if (agentPageSizeSelect) {
+    agentPageSizeSelect.addEventListener('change', function () {
+      agentPage = 0;
       if (lastSnapshot) render(lastSnapshot);
     });
   }
+  var agentPrev = document.getElementById('agent-prev');
+  if (agentPrev) agentPrev.addEventListener('click', function () { stepAgentPage(-1); });
+  var agentNext = document.getElementById('agent-next');
+  if (agentNext) agentNext.addEventListener('click', function () { stepAgentPage(1); });
 
   var rangeSelect = document.getElementById('range-select');
   connect(rangeSelect ? rangeSelect.value : 'today');
@@ -469,6 +496,19 @@ export const renderPage = (): string => `<!doctype html>
     border-radius: 4px;
     padding: 3px 6px;
   }
+  .pager { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .pager-btn {
+    font-family: inherit;
+    font-size: 12px;
+    background: #161b22;
+    color: #8ab4f8;
+    border: 1px solid #263043;
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  .pager-btn:hover:not(:disabled) { border-color: #8ab4f8; }
+  .pager-btn:disabled { color: #4b5468; cursor: default; }
   #docs-toggle {
     background: none;
     border: none;
@@ -545,7 +585,7 @@ export const renderPage = (): string => `<!doctype html>
     <h3>Purpose</h3>
     <p>This page shows what the coding agents working on this repository have done and are doing — which agents ran, on which models, at what token cost — alongside the work and ideas they have logged.</p>
     <h3>Agents</h3>
-    <p>One row per session transcript, including subagents (marked <span class="badge">sidechain</span>). The dropdown caps how many rows are listed, most recently active first; pick <em>all</em> to see every transcript. Shows the model of the last assistant message, the most recent tool call, a snippet of the latest output, cumulative input/output tokens, and how long ago the transcript last changed. A green dot means the session was active recently, gray means it was not.</p>
+    <p>One row per session transcript, including subagents (marked <span class="badge">sidechain</span>). Rows are ordered most recently active first and split into pages; the dropdown sets the page size and the prev/next buttons move through them. Pick <em>all</em> to drop the paging and list every transcript at once. Shows the model of the last assistant message, the most recent tool call, a snippet of the latest output, cumulative input/output tokens, and how long ago the transcript last changed. A green dot means the session was active recently, gray means it was not.</p>
     <h3>Usage</h3>
     <p>Token totals across every transcript being watched:</p>
     <ul>
@@ -579,11 +619,16 @@ export const renderPage = (): string => `<!doctype html>
 
   <section>
     <h2>Agents
-      <select id="agent-limit" class="range-select">
-        ${agentLimitOptionsHtml}
+      <select id="agent-page-size" class="range-select">
+        ${agentPageSizeOptionsHtml}
       </select>
       <span class="muted" id="agent-count"></span>
     </h2>
+    <div class="pager">
+      <button type="button" id="agent-prev" class="pager-btn">&lsaquo; prev</button>
+      <span class="muted" id="agent-page"></span>
+      <button type="button" id="agent-next" class="pager-btn">next &rsaquo;</button>
+    </div>
     <table id="agents-table">
       <thead>
         <tr><th></th><th>Label</th><th>Model</th><th>Tool</th><th>Snippet</th><th>In</th><th>Out</th><th>Last activity</th></tr>
