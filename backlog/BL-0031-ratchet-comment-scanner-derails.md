@@ -1,6 +1,6 @@
 ---
 id: BL-0031
-title: Ratchet comment scanner derails on template literals, missing 24% of comments
+title: Ratchet comment scanner derails on templates, missing 24% of comments
 type: bug
 status: ready
 priority: p1
