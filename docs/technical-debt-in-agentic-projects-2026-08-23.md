@@ -111,7 +111,7 @@ Of the 23 non-null assertions, 21 are in
 and are one idiom repeated — `parseTranscriptLine(FIXTURE, lines[0]!)` under
 `noUncheckedIndexedAccess`. That is one fix, not 21: a fixture helper returning a checked line
 would retire most of the count. The 63 undocumented exports are spread over 30 files, led by the
-in-flight `packages/codemap` modules (`rewrite.ts` 5, `stats.ts` 5, `clones.ts` 4, `metrics.ts`
+newest `packages/codemap` modules (`rewrite.ts` 5, `stats.ts` 5, `clones.ts` 4, `metrics.ts`
 4).
 
 **Row 2 — counted, not gated.** Fifteen files exceed the PS-024 300-line budget, led by
@@ -142,12 +142,14 @@ tools"; [AGENTS.md](../AGENTS.md) states 33, and the catalogue is the larger num
 detects the disagreement. BL-0025 proposes generated marker blocks with a staleness gate, which
 is the row-4-to-row-2 promotion for exactly this class of drift.
 
-**Uncommitted work.** The tree carries seven untracked modules and two untracked test files under
-`packages/codemap` (`extract.ts`, `holes.ts`, `placement.ts`, `rewrite.ts`, `scope.ts`,
-`sites.ts`, `edits.ts`, plus tests) and four modified files, roughly 1,200 new lines in total.
-This is the debt with the shortest fuse: uncommitted work has no revert point, and the standing
-convention in [CLAUDE.md](../CLAUDE.md) is that a clean commit point exists before new work
-starts.
+**Uncommitted work.** While this report was being written the tree carried roughly 1,200 new
+lines under `packages/codemap` — the clone-extraction modules — with no commit point. They landed
+mid-measurement as `adf5a17`. That is the debt with the shortest fuse and the one most specific
+to parallel agents: uncommitted work has no revert point, the standing convention in
+[CLAUDE.md](../CLAUDE.md) is that a clean commit point exists before new work starts, and a
+second session cannot see work that has not been committed. One untracked id marker,
+`backlog/.ids/0030`, was left behind by the same style of oversight; an unmarked id can be
+handed out twice.
 
 ---
 
@@ -238,10 +240,10 @@ because the shortest path is found faster.
 **Give debt to the tool that can pay it, not to a prompt.** "Clean up the duplication in
 `packages/mcp`" is a prompt that produces a large uncheckable diff. The MCP server's
 `move_symbol`, `change_signature`, `delete_symbol`, and `unused_exports` produce plans a reviewer
-can read, and `checkpoint`/`revert` bound the damage. The in-flight `npm run clones -- --extract N`
-work in `packages/codemap` is the same idea for duplication: it prints the declaration it would
-create, every call site, and every reason the extraction would not compile, before writing
-anything. Preview, then apply, is the correct default for every automated debt payment.
+can read, and `checkpoint`/`revert` bound the damage. The `npm run clones -- --extract N`
+work in `packages/codemap` (`adf5a17`) is the same idea for duplication: it prints the
+declaration it would create, every call site, and every reason the extraction would not compile,
+before writing anything. Preview, then apply, is the correct default for every automated debt payment.
 
 **Read the duplication ranking with judgment.** `npm run clones` ranks by nodes removed, and the
 top entry repository-wide is `expect(plan.ok).toBe(false)` appearing 44 times. Extracting it
@@ -266,20 +268,16 @@ most recent thing anyone touched, competes with nothing and has the best availab
 
 ## 7. What to do next
 
-Ordered by exposure against cost. The first two are the ones that matter.
+Ordered by exposure against cost. The first is the one that matters.
 
-1. **Land the in-flight `packages/codemap` extraction work.** Nine untracked files and four
-   modified ones have no commit point. Run `npm run check`, then commit with a pathspec. Until
-   this is done, every other change in this repository is harder to revert than it should be.
-
-2. **Fix the ratchet's comment scanner, and make the two implementations agree.** Replace the
+1. **Fix the ratchet's comment scanner, and make the two implementations agree.** Replace the
    raw-scanner walk in `collectCommentText` with comment ranges taken from the parsed source
    file, which `countEscapeHatches` already creates a few lines above. Then add a differential
    test asserting that `packages/check`'s counts and the MCP server's `hatchesOfFile` agree on
    every file in the repository. Expect the fix to raise `tsDirectives` and `eslintDisables`,
    expect the ratchet to fail, and re-bless the baseline deliberately.
 
-3. **Decide what a suppression comment is, once.** A comment that mentions `eslint-disable` in
+2. **Decide what a suppression comment is, once.** A comment that mentions `eslint-disable` in
    prose is not a suppression, and the two implementations get this wrong in opposite directions.
    The narrow rule — the directive must begin the comment, optionally after whitespace — is what
    ESLint and TypeScript themselves apply, and it removes both false positives without weakening
@@ -287,29 +285,29 @@ Ordered by exposure against cost. The first two are the ones that matter.
    [packages/check/src/ratchet.ts:7](../packages/check/src/ratchet.ts) is a prose mention too, so
    the baseline's `tsDirectives: 1` should become 0 under the corrected rule.
 
-4. **Promote two row-2 debts to row-1 counts.** Add a `filesOverBudget` axis (PS-024, currently
+3. **Promote two row-2 debts to row-1 counts.** Add a `filesOverBudget` axis (PS-024, currently
    15) and an `unusedExports` axis to `RatchetCounts`. Both quantities are already computed — the
    first by `packages/codemap/src/metrics.ts`, the second by the MCP `unused_exports` tool — so
    the work is wiring and a baseline, not analysis. BL-0029 already covers the first offender.
 
-5. **Retire the 21 non-null assertions in `transcripts.test.ts` as one change.** A fixture helper
+4. **Retire the 21 non-null assertions in `transcripts.test.ts` as one change.** A fixture helper
    returning a checked line removes 21 of the repository's 23 non-null assertions and drops the
    baseline in a single commit.
 
-6. **Finish the undocumented exports to zero.** 63 remain in 30 files, concentrated in the new
+5. **Finish the undocumented exports to zero.** 63 remain in 30 files, concentrated in the new
    `packages/codemap` modules. The `doc-writer` agent exists for exactly this and refuses rather
    than guesses, which is the property that makes an automated pass safe.
 
-7. **Expose duplication payment through the MCP server.** Once `clones --extract` lands, an agent
+6. **Expose duplication payment through the MCP server.** `clones --extract` has landed; an agent
    should be able to ask for a group's extraction plan and apply it, with the same preview-and-
    refuse discipline as the other write tools. Duplication is the debt this development style
    generates fastest, and it is currently the one with no automated payment path.
 
-8. **Close the row-4 gap on docs.** BL-0025 (generated marker blocks with a staleness gate) is
+7. **Close the row-4 gap on docs.** BL-0025 (generated marker blocks with a staleness gate) is
    already filed; the README's "nine tools" against the catalogue's 33 is the concrete case it
    would have caught.
 
-9. **Triage the four stale `in-progress` items.** BL-0005 and BL-0010 have been `in-progress`
+8. **Triage the four stale `in-progress` items.** BL-0005 and BL-0010 have been `in-progress`
    since 2026-08-22. An item that is `in-progress` and untouched is worse than one marked
    `ready`, because it suppresses the question of whether anyone will do it.
 
