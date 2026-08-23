@@ -3,6 +3,9 @@
 // breaks if I change it".
 //
 // Three limits are worth stating, because the output looks complete either way.
+// Importing a name is not using it here, so a module that imports a symbol and
+// never calls it is absent from every answer below except the `uses:` list in
+// `blastRadius`, which mirrors `usages` and does count the import line.
 // A caller is the nearest enclosing function, method, or class, so a reference
 // from a top-level initializer or an import statement has no caller at all and
 // simply does not appear in the tree. A call made through a value the index could not resolve back to
@@ -46,38 +49,49 @@ const nameOfDeclaration = (node: ts.Node): ts.Node | undefined =>
         ? node.name
         : undefined
 
-const enclosingDeclaration = (
-  workspace: Workspace,
-  byId: ReadonlyMap<string, SymbolInfo>,
-  file: string,
-  position: number,
-): SymbolInfo | undefined => {
-  const source = sourceOf(workspace, file)
-  if (source === undefined) return undefined
-  const owners = ancestorsAtPosition(source, source, position).flatMap((node) => {
-    const name = nameOfDeclaration(node)
-    if (name === undefined) return []
-    const start = name.getStart(source)
-    const symbol = byId.get(`${file}#${start}`)
-    return symbol === undefined || start === position ? [] : [symbol]
-  })
-  return owners[owners.length - 1]
+// An `import { x } from …` clause is a reference like any other in the index —
+// `isDefinition` is false on it — so a walk that trusted that flag would report
+// every importing module as a caller and every test's import line as a test.
+// Naming a symbol in an import or a re-export is not using it.
+const isModuleBinding = (node: ts.Node): boolean =>
+  ts.isImportDeclaration(node) || ts.isImportEqualsDeclaration(node) || ts.isExportDeclaration(node)
+
+// One use of a symbol, with the declaration that contains it when there is one.
+type UseSite = {
+  readonly reference: SymbolReference
+  readonly owner: SymbolInfo | undefined
 }
 
-const usesOf = (workspace: Workspace, symbol: SymbolInfo): readonly SymbolReference[] =>
-  workspace.index.references.filter(
-    (reference) => reference.symbolId === symbol.id && !reference.isDefinition,
-  )
+const useSites = (
+  workspace: Workspace,
+  byId: ReadonlyMap<string, SymbolInfo>,
+  symbol: SymbolInfo,
+): readonly UseSite[] =>
+  workspace.index.references
+    .filter((reference) => reference.symbolId === symbol.id && !reference.isDefinition)
+    .flatMap((reference) => {
+      const source = sourceOf(workspace, reference.file)
+      if (source === undefined) return []
+      const chain = ancestorsAtPosition(source, source, reference.span.start)
+      if (chain.some(isModuleBinding)) return []
+      const owners = chain.flatMap((node) => {
+        const name = nameOfDeclaration(node)
+        if (name === undefined) return []
+        const start = name.getStart(source)
+        const owner = byId.get(`${reference.file}#${start}`)
+        return owner === undefined || start === reference.span.start ? [] : [owner]
+      })
+      return [{ reference, owner: owners[owners.length - 1] }]
+    })
 
 const callersOf = (
   workspace: Workspace,
   byId: ReadonlyMap<string, SymbolInfo>,
   symbol: SymbolInfo,
 ): readonly SymbolInfo[] => {
-  const owners = usesOf(workspace, symbol).flatMap((reference) => {
-    const owner = enclosingDeclaration(workspace, byId, reference.file, reference.span.start)
-    return owner === undefined ? [] : [owner]
-  })
+  const owners = useSites(workspace, byId, symbol).flatMap((site) =>
+    site.owner === undefined ? [] : [site.owner],
+  )
   return [...new Map(owners.map((owner) => [owner.id, owner])).values()]
 }
 
@@ -145,9 +159,13 @@ const isTestFile = (file: string): boolean =>
 // A helper that nothing but tests reaches is part of the test scaffolding, so
 // the tests reaching it also reach whatever it calls. One level only: past that
 // the claim stops being about coverage.
-const reachedOnlyFromTests = (workspace: Workspace, symbol: SymbolInfo): boolean => {
-  const uses = usesOf(workspace, symbol)
-  return uses.length > 0 && uses.every((reference) => isTestFile(reference.file))
+const reachedOnlyFromTests = (
+  workspace: Workspace,
+  byId: ReadonlyMap<string, SymbolInfo>,
+  symbol: SymbolInfo,
+): boolean => {
+  const sites = useSites(workspace, byId, symbol)
+  return sites.length > 0 && sites.every((site) => isTestFile(site.reference.file))
 }
 
 const coverageLines = (
@@ -155,15 +173,15 @@ const coverageLines = (
   byId: ReadonlyMap<string, SymbolInfo>,
   symbol: SymbolInfo,
 ): readonly string[] => {
-  const direct = usesOf(workspace, symbol)
-    .filter((reference) => isTestFile(reference.file))
-    .map((reference) => `${reference.file}:${reference.line} direct`)
+  const direct = useSites(workspace, byId, symbol)
+    .filter((site) => isTestFile(site.reference.file))
+    .map((site) => `${site.reference.file}:${site.reference.line} direct`)
   const indirect = callersOf(workspace, byId, symbol)
-    .filter((caller) => !isTestFile(caller.file) && reachedOnlyFromTests(workspace, caller))
+    .filter((caller) => !isTestFile(caller.file) && reachedOnlyFromTests(workspace, byId, caller))
     .flatMap((caller) =>
-      usesOf(workspace, caller)
-        .filter((reference) => isTestFile(reference.file))
-        .map((reference) => `${reference.file}:${reference.line} via ${caller.name}`),
+      useSites(workspace, byId, caller)
+        .filter((site) => isTestFile(site.reference.file))
+        .map((site) => `${site.reference.file}:${site.reference.line} via ${caller.name}`),
     )
   return [...direct, ...indirect]
 }

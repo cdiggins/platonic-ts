@@ -53,6 +53,12 @@ describe('callers', () => {
     expect(text.split('\n')).toHaveLength(3)
   })
 
+  it('does not treat an import statement as a caller', () => {
+    const text = callers(chain, 'middle', undefined, 1).text
+    expect(text).toContain('  top.ts:3 top')
+    expect(text.split('\n')).toHaveLength(2)
+  })
+
   it('explains an unknown name rather than returning an empty tree', () => {
     const result = callers(chain, 'nope', undefined, 1)
     expect(result.ok).toBe(false)
@@ -85,17 +91,16 @@ const tested = workspaceOf({
 })
 
 describe('testsForSymbol', () => {
-  it('reports a reference from a .test.ts file as a direct test', () => {
+  it('reports a reference from a .test.ts file as a direct test, and the import line as none', () => {
     const text = testsForSymbol(tested, 'covered', undefined).text
-    expect(text.split('\n')[0]).toBe('tests for covered (lib.ts:1) — 2 tests')
-    expect(text).toContain('lib.test.ts:1 direct')
-    expect(text).toContain('lib.test.ts:4 direct')
+    expect(text).toBe(['tests for covered (lib.ts:1) — 1 tests', 'lib.test.ts:4 direct'].join('\n'))
   })
 
   it('credits a test-only helper to the symbol it calls', () => {
     const text = testsForSymbol(tested, 'deep', undefined).text
-    expect(text).toContain('lib.test.ts:2 via helper')
-    expect(text).toContain('lib.test.ts:4 via helper')
+    expect(text).toBe(
+      ['tests for deep (lib.ts:3) — 1 tests', 'lib.test.ts:4 via helper'].join('\n'),
+    )
   })
 
   it('states that nothing exercises an untested symbol', () => {
@@ -121,6 +126,6 @@ describe('blastRadius', () => {
 
   it('counts covering tests in the headline', () => {
     const headline = blastRadius(tested, 'covered', undefined).text.split('\n')[0]
-    expect(headline).toBe('covered (lib.ts:1) — 2 uses in 2 files, 1 callers, 2 tests')
+    expect(headline).toBe('covered (lib.ts:1) — 2 uses in 2 files, 1 callers, 1 tests')
   })
 })
