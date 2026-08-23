@@ -11,3 +11,13 @@ export { outline, symbolSource, usages, search, repoMap } from './query.ts'
 export type { FileEdit, EditPlan } from './edit.ts'
 export { applyEdits, editsByFile, replaceSymbol, insertSymbol } from './edit.ts'
 export { renameSymbol, unrewritableOccurrences } from './rename.ts'
+export type { Compiler } from './compiler.ts'
+export {
+  createCompiler,
+  toFileEdits,
+  newFilesIn,
+  describeDiagnostic,
+  compilerOptions,
+  formatSettings,
+  userPreferences,
+} from './compiler.ts'

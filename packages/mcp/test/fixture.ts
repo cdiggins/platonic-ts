@@ -5,6 +5,7 @@ import ts from 'typescript'
 import type { CodeIndex } from '../../core/src/index.ts'
 import { collectReferences, extractSymbols } from '../../codemap/src/symbols.ts'
 import type { Workspace } from '../src/workspace.ts'
+import { createCompiler, type Compiler } from '../src/compiler.ts'
 
 const ROOT = 'C:/repo'
 
@@ -58,3 +59,9 @@ export const workspaceOf = (sources: Readonly<Record<string, string>>): Workspac
     ),
   }
 }
+
+// The same sources, bound: a program with a checker and a language service over
+// them. Tools that ask the compiler questions take this; the rest take the
+// workspace above.
+export const compilerOf = (sources: Readonly<Record<string, string>>): Compiler =>
+  createCompiler(ROOT, new Map(Object.entries(sources)), workspaceOf(sources))

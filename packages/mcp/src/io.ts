@@ -20,6 +20,7 @@ import {
   type RepoWatch,
 } from '../../codemap/src/index.ts'
 import { applyEdits, editsByFile, type FileEdit } from './edit.ts'
+import { createCompiler, type Compiler } from './compiler.ts'
 import type { Workspace } from './workspace.ts'
 
 export type WriteResult =
@@ -165,4 +166,13 @@ export const writeEdits = async (
   markChanged(files)
   const failures = problems.filter((problem): problem is string => problem !== undefined)
   return failures.length > 0 ? { ok: false, text: failures.join('\n') } : { ok: true, files }
+}
+
+// The bound program is built on demand and thrown away: binding the repository
+// costs seconds, and only a minority of tools need it. Callers that need it
+// twice in one request should pass the value along rather than ask again.
+export const loadCompiler = async (repoDir: string): Promise<Compiler> => {
+  const workspace = await loadWorkspace(repoDir)
+  const texts = new Map([...workspace.sources].map(([file, source]) => [file, source.text]))
+  return createCompiler(repoDir, texts, workspace)
 }
