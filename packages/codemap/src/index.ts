@@ -29,4 +29,22 @@ export {
   type SizeReport,
   type SourceEntry,
 } from './stats.ts'
-export { formatSizeReport } from './report.ts'
+export { formatSizeReport, formatCloneReport } from './report.ts'
+export {
+  expressionShape,
+  sameShape,
+  defaultShapeOptions,
+  type Shape,
+  type ShapeOptions,
+  type LiteralMode,
+} from './shapes.ts'
+export {
+  shapedExpressions,
+  groupByShape,
+  repeatedExpressions,
+  defaultCloneOptions,
+  type ExpressionOccurrence,
+  type ShapedExpression,
+  type ShapeGroup,
+  type CloneOptions,
+} from './clones.ts'

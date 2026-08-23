@@ -1,5 +1,6 @@
-// Rendering a size report as a fixed-width table. Presentation only: the numbers are
-// decided in `stats.ts`, and this module never computes one.
+// Rendering this package's reports as fixed-width text. Presentation only: the numbers are
+// decided in `stats.ts` and `clones.ts`, and this module never computes one.
+import type { ExpressionOccurrence, ShapeGroup } from './clones.ts'
 import type { PopulationName, PopulationReport, SizeReport, ZoneSummary } from './stats.ts'
 import type { Summary } from './summary.ts'
 
@@ -93,5 +94,42 @@ export const formatSizeReport = (report: SizeReport): string =>
     '',
     ...report.populations.flatMap((population) => [...tableOf(population), '']),
   ]
+    .join('\n')
+    .trimEnd()
+
+// ---------------------------------------------------------------------------
+// Repeated shapes.
+// ---------------------------------------------------------------------------
+
+const oneLine = (text: string, width: number): string => {
+  const collapsed = text.replace(/\s+/gu, ' ')
+  return collapsed.length <= width ? collapsed : `${collapsed.slice(0, width - 1)}…`
+}
+
+// The names are the ones this occurrence would pass, so a reader can see at a glance
+// whether the group is one function called four ways or four unrelated pipelines.
+const occurrenceLine = (occurrence: ExpressionOccurrence): string =>
+  [
+    `    ${occurrence.file}:${occurrence.line}  (${occurrence.parameters.join(', ')})`,
+    `      ${oneLine(occurrence.text, 96)}`,
+  ].join('\n')
+
+const groupBlock = (group: ShapeGroup, rank: number): readonly string[] => [
+  `#${rank}  x${group.occurrences.length}  ${group.nodes} nodes  ` +
+    `${group.parameterCount} parameter(s)  ~${group.savedNodes} nodes saved`,
+  ...group.occurrences.map(occurrenceLine),
+  '',
+]
+
+export const formatCloneReport = (groups: readonly ShapeGroup[]): string =>
+  (groups.length === 0
+    ? ['no expression shape repeats under these settings']
+    : [
+        `${groups.length} expression shape(s) repeat, ranked by the nodes an extraction would remove`,
+        'each occurrence is listed with the arguments it would pass',
+        '',
+        ...groups.flatMap((group, index) => groupBlock(group, index + 1)),
+      ]
+  )
     .join('\n')
     .trimEnd()

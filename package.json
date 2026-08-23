@@ -17,6 +17,7 @@
     "backlog:validate": "tsx packages/backlog/src/main.ts validate",
     "codeview": "tsx packages/codeview/src/main.ts",
     "stats": "tsx packages/codemap/src/main.ts",
+    "clones": "tsx packages/codemap/src/main.ts clones",
     "transcripts": "tsx packages/transcripts/src/main.ts",
     "init": "tsx packages/init/src/main.ts",
     "mcp": "tsx packages/mcp/src/main.ts"
