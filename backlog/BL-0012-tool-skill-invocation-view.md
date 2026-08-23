@@ -2,7 +2,7 @@
 id: BL-0012
 title: Show skill and tool invocation history in dashboard
 type: idea
-status: idea
+status: in-progress
 priority: "?"
 effort: "?"
 risk: "?"

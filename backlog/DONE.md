@@ -10,3 +10,6 @@ items only ever join this list, never leave it, so it behaves as an event log.
 - 2026-08-22 — [BL-0002](BL-0002-escape-hatch.md) — Escape-hatch ratchet — done
 - 2026-08-22 — [BL-0003](BL-0003-eslint-functional.md) — ESLint functional-subset config — done
 - 2026-08-22 — [BL-0007](BL-0007-dashboard-polish.md) — Dashboard polish - subagent transcripts, readable labels, session scoping — done
+- 2026-08-22 — [BL-0008](BL-0008-usage-scoping.md) — Scope usage view to selectable time range — done
+- 2026-08-22 — [BL-0009](BL-0009-ratchet-fixture-noise.md) — Ratchet regex counts pollute baseline via test fixtures — done
+- 2026-08-22 — [BL-0015](BL-0015-workflow-hook-graph.md) — Diagram which hooks fire across different agent workflow shapes — done

@@ -2,7 +2,7 @@
 id: BL-0010
 title: Build platonic init retrofitter for existing repos
 type: idea
-status: idea
+status: in-progress
 priority: "?"
 effort: "?"
 risk: "?"

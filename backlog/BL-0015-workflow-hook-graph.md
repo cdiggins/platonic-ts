@@ -2,14 +2,14 @@
 id: BL-0015
 title: Diagram which hooks fire across different agent workflow shapes
 type: idea
-status: idea
+status: done
 priority: "?"
 effort: "?"
 risk: "?"
 area: repo
 sprint:
 created: 2026-08-22
-closed:
+closed: 2026-08-22
 links: [BL-0004]
 ---
 

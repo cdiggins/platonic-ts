@@ -2,14 +2,14 @@
 id: BL-0008
 title: Scope usage view to selectable time range
 type: feature
-status: ready
+status: done
 priority: p3
 effort: S
 risk: low
 area: dashboard
 sprint:
 created: 2026-08-22
-closed:
+closed: 2026-08-22
 links: [BL-0007]
 ---
 Usage totals are all-time; mixing old sessions with current work hides today's burn.

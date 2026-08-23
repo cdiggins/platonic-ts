@@ -2,7 +2,7 @@
 id: BL-0004
 title: Claude Code hooks emit events
 type: feature
-status: ready
+status: in-progress
 priority: p3
 effort: M
 risk: med

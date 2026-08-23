@@ -2,14 +2,14 @@
 id: BL-0009
 title: Ratchet regex counts pollute baseline via test fixtures
 type: bug
-status: ready
+status: done
 priority: p3
 effort: S
 risk: low
 area: check
 sprint:
 created: 2026-08-22
-closed:
+closed: 2026-08-22
 links: []
 ---
 tsDirectives/eslintDisables are counted by regex over raw source text, so ratchet test
