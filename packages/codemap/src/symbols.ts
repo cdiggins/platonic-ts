@@ -277,16 +277,23 @@ const isIndexedFile = (root: string, sourceFile: ts.SourceFile): boolean => {
   return !sourceFile.isDeclarationFile && !file.includes('node_modules') && isRepoRelative(file)
 }
 
-// Every identifier occurrence that resolves to one of `symbols`, definitions included.
+// Every identifier occurrence that resolves to one of `symbols`, definitions
+// included. `files`, when given, restricts the walk to those repo-relative
+// paths — an incremental rebuild only needs the files a change can reach.
 export const collectReferences = (
   root: string,
   program: ts.Program,
   symbols: readonly SymbolInfo[],
+  files?: ReadonlySet<string>,
 ): readonly SymbolReference[] => {
   const checker = program.getTypeChecker()
   const known = new Set(symbols.map((symbol) => symbol.id))
   return program
     .getSourceFiles()
-    .filter((sourceFile) => isIndexedFile(root, sourceFile))
+    .filter(
+      (sourceFile) =>
+        isIndexedFile(root, sourceFile) &&
+        (files === undefined || files.has(toRepoRelative(root, sourceFile.fileName))),
+    )
     .flatMap((sourceFile) => referencesInFile(root, checker, known, sourceFile))
 }

@@ -691,3 +691,24 @@ listed below. Findings by track.
   in `codemap/src/symbols.ts` to `core/src/index.ts`, 10 references), markdown with frontmatter
   stripped, 404 on an unknown path, 400 on traversal, and the feedback box filing a real
   backlog item (removed afterwards).
+
+### Incremental indexing and file watching
+
+- **A rebuild after one edit costs 50ms where a full index costs 1.6s**, and the two produce the
+  same index. Three separate savings, measured on this repository: handing the compiler its
+  previously parsed source files plus the old program takes program construction from 740ms to
+  9ms; declarations and metrics are recomputed only for changed files; references are
+  recollected only for the changed files plus the files that referred into them.
+- **The reference rule is the only subtle part.** A reference recorded in an unchanged file is
+  still true unless the declaration it points at moved, so the rewalk set is the changed files
+  plus every file that referenced one of them. Nothing outside that set can gain or lose a
+  reference, because a file refers to something new only when its own text changes.
+- **A full index is now an update that treats every file as changed**, so both paths run one
+  code path and the incremental path cannot drift from the full one.
+- **The timestamp scan is cheap enough to stay the authority**: 3ms over 143 files. File
+  watching is layered on top rather than trusted alone — it coalesces events, names directories
+  instead of files on some platforms, and is not available recursively everywhere. Writes made
+  by the MCP server's own edit tools are recorded directly, since a notification need not arrive
+  before the next call does.
+- **Measured through the MCP server**: first call 2.4s, steady state 4ms, first call after an
+  external edit 65-91ms (it was a full rebuild before).

@@ -75,10 +75,45 @@ The last row is the input to the edit call rather than the output. It is also wh
 argument is strongest: a `replace_symbol` call cannot fail because the agent misremembered
 whitespace, and a rename cannot half-apply.
 
-The first call after a change costs about two seconds, which is the compiler indexing the
-repository. Every call after that is two to four milliseconds, until a file changes and the
-index is rebuilt. A tool that writes therefore costs the next call its rebuild — about 1.5
-seconds here.
+The first call after the server starts costs about 2.4 seconds, which is the compiler indexing
+the repository. Every call after that is two to four milliseconds. A write — or any other edit
+to the repository, by this agent or another one — costs the next call a rebuild of what the
+change reached: 65 to 90 milliseconds here, against the 1.6 seconds a full index takes.
+
+## Keeping the index current
+
+A server that stays up has to notice that the repository changed under it. Two mechanisms do
+that here, and both feed the same rebuild.
+
+The first is the operating system's file-change notifications, one recursive watch per indexed
+directory (`packages`, `docs`, `decisions`, `backlog`) and one non-recursive watch on the root
+for the markdown files that sit there. Watching is best-effort by contract: events are
+coalesced, some platforms name the directory rather than the file, and a recursive watch is not
+available everywhere. So the second mechanism is a scan of modification times, compared against
+the previous scan. The scan cannot miss a change and costs about 3 milliseconds over this
+repository's 143 files, which is why it is the authority; the watcher adds the changes a
+modification time does not show, such as a file restored with its old timestamp, and costs
+nothing to consult. Writes made by the server's own edit tools are recorded directly, because a
+notification may not arrive before the next call does.
+
+What that produces is a list of paths, and the rebuild re-reads only those. Three things make
+it cheap. The compiler is handed the source files it parsed last time along with the previous
+program, so it reuses the program structure instead of re-reading and re-parsing the repository:
+9 milliseconds against 740. Metrics and declarations are recomputed only for the files that
+changed. References are recollected only for the files a change can reach — the changed files
+themselves, plus every file that referred to something declared in one of them. Nothing else can
+have gained or lost a reference, because a file refers to something new only when its own text
+changes.
+
+The result is not an approximation of a full index; it is the same index. That is a property
+worth testing directly, and `packages/codemap/test/incremental.test.ts` does: rename a
+declaration and its user, move a declaration down a file, add a file, delete a file, edit a
+markdown file — in each case the incrementally updated index must equal what a full rebuild
+produces. On this repository an update after one edit takes 50 milliseconds where a full index
+takes 1.6 seconds.
+
+The same machinery is what the code browser (`packages/codeview`) now uses, in place of
+rebuilding the entire index every five seconds.
 
 ## What it does not do
 
@@ -91,8 +126,8 @@ an identifier in place: a shorthand property (`{ name }`) and a renamed import o
 reports the locations and does nothing. That is a real limit — the fix is to widen the rewrite
 to handle both forms — but a rename that silently half-applies is worse than one that refuses.
 
-There is no incremental indexing. Any write invalidates the whole index and the next call pays
-to rebuild it. On a repository several times this size that trade would need revisiting.
+Nothing is cached across processes. A restarted server pays the full index again, and the
+incremental machinery below only helps a server that stays up.
 
 Nothing here is Claude-specific, but nothing here has been tried with another agent either.
 

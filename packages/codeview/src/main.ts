@@ -3,23 +3,36 @@
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { CodeIndex, FileView, SymbolReference } from '../../core/src/index.ts'
-import { indexRepo } from '../../codemap/src/index.ts'
+import {
+  changedPaths,
+  openSession,
+  scanTimestamps,
+  updateSession,
+  watchRepo,
+} from '../../codemap/src/index.ts'
 import { renderMarkdown, renderSourceHtml } from './render.ts'
 import { appendFeedbackItem } from './io.ts'
 import { startCodeView } from './server.ts'
 
 const repoDir = resolve(import.meta.dirname, '..', '..', '..')
-const indexTtlMs = 5_000
 
 const main = async (): Promise<void> => {
-  let cached: CodeIndex | undefined = undefined
+  // The watcher reports a change as it happens; the timestamp scan cannot miss
+  // one. Both feed the same rebuild, which re-reads only the files named and so
+  // is cheap enough to run on every request: about 50ms after one edit against
+  // 1.6s for a full index of this repository.
+  const touched = new Set<string>()
+  watchRepo(repoDir, (file) => touched.add(file))
+  let session = await openSession(repoDir, Date.now())
+  let timestamps = await scanTimestamps(repoDir)
 
   const index = async (): Promise<CodeIndex> => {
-    const now = Date.now()
-    if (cached === undefined || now - cached.generatedAt > indexTtlMs) {
-      cached = await indexRepo(repoDir, now)
-    }
-    return cached
+    const scanned = await scanTimestamps(repoDir)
+    const changed = [...new Set([...touched, ...changedPaths(timestamps, scanned)])]
+    touched.clear()
+    timestamps = scanned
+    session = await updateSession(session, changed, Date.now())
+    return session.index
   }
 
   const fileView = async (file: string): Promise<FileView | undefined> => {
