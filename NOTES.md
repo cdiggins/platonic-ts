@@ -290,3 +290,57 @@ packages/check` — 16/16 passed (11 ratchet.test.ts + 5 baseline.test.ts).
   Whole-repo `npx tsc --noEmit` currently fails on unrelated in-progress files outside this fence
   (`packages/transcripts/src/index.ts`, `packages/init/src/index.ts` — other Wave 4 tracks mid-edit),
   so `npm run check` end-to-end is not green yet, but not from this track's files.
+
+### Track O — usage-range seam (BL-0008)
+
+- `DashboardSnapshot.usage` in `packages/core/src/index.ts` is already fully aggregated
+  (`summarizeUsage` output) — no raw `AgentActivity[]` travels to the browser, and `main.ts` is
+  outside this fence (Wave 4 O writes `packages/dashboard/src/**` except `main.ts`). So neither
+  a client-side re-slice (no per-activity data exists client-side) nor a core-type change
+  (frozen this wave) was available. Went server-side, per the task's own fallback option.
+- New pure module `packages/dashboard/src/range.ts`: `UsageRangeKey` = `'last-hour' | 'today' |
+  'all' | 'last-100' | 'last-500'`, `USAGE_RANGES`, `DEFAULT_USAGE_RANGE = 'today'`,
+  `usageRangeLabel`, `parseUsageRange` (unknown/missing value -> default, never throws), and
+  `sliceActivitiesByRange(activities, range, now)` — time ranges filter by timestamp
+  (`today` uses local-midnight via `Date#setHours(0,0,0,0)`, matching whatever timezone the
+  dashboard process runs in), count ranges use `Array#slice(-n)` (no-op when the list is
+  shorter than the window — tested).
+- `server.ts` grew an **optional** `activitiesProvider?: () => Promise<readonly
+  AgentActivity[]>` on `startDashboard`'s options, plus a `?range=` query param on both
+  `/api/state` and `/api/events`. When `activitiesProvider` is supplied, the server slices its
+  activities by the requested range, re-runs `summarizeUsage` (imported read-only from
+  `packages/transcripts`, not reimplemented) over the slice, and splices the result over
+  `snapshot.usage` — keeping `outputTokensPerMinute` from the original all-time snapshot
+  unchanged, since that figure is a live 5-minute burn rate, not a historical total the range
+  selector should touch. When `activitiesProvider` is omitted (current state — see below), the
+  route ignores `?range=` and returns the untouched snapshot: fully backward compatible, zero
+  breakage for the existing behavior/tests.
+- **Integration TODO for the Wave-4 S4 supervisor** (main.ts is out of this fence): `main.ts`
+  already keeps the full `activities` array in a closure (see its `provider`). Wiring this
+  feature end-to-end is a two-line addition to the `startDashboard({...})` call there:
+  `activitiesProvider: () => Promise.resolve(activities)`. Until that lands, the range
+  dropdown renders and reconnects correctly but the server has no activities to slice, so
+  every range currently returns the same all-time totals — inert but harmless.
+- `ui.ts` adds a `<select id="range-select">` next to the Usage heading (options from
+  `USAGE_RANGES`/`usageRangeLabel`, default `today` selected to match `DEFAULT_USAGE_RANGE`).
+  Selection persistence across SSE pushes: `render()` never touches `#range-select`, so the
+  live DOM node (and the user's choice) survives every 2s re-render untouched. Changing the
+  dropdown closes the existing `EventSource` and opens a new one at
+  `/api/events?range=<value>` — range travels as a per-connection query string rather than a
+  message pumped over an already-open stream, which keeps `ui.ts`'s zero-external-request /
+  inline-only constraint intact and needed no new protocol on top of SSE.
+- Payload growth: none per tick beyond the existing snapshot shape — `usage` is replaced in
+  place with the same `UsageSummary` shape, no new top-level fields sent to the browser.
+- Tests: `packages/dashboard/test/range.test.ts` (9 tests) — `parseUsageRange` round-trip +
+  fallback, `usageRangeLabel` non-empty for every key, and `sliceActivitiesByRange` boundary
+  cases (last-hour/today inclusive-start exclusive-just-before boundary, `all` passthrough,
+  count ranges both truncating and no-op when `count >= length`).
+  `packages/dashboard/test/server.test.ts` gained 2 tests on port 0: `?range=` is a no-op
+  without `activitiesProvider`, and re-summarization produces different totals for `all` vs
+  `last-hour` with a synthetic 2-activity list once `activitiesProvider` is supplied.
+- No `packages/core` edits, no dependency requests, no `packages/dashboard/src/main.ts` edits.
+- Gates (this fence): `npx tsc --noEmit` — 2 pre-existing errors, both outside this fence
+  (`packages/gitlink/src/index.ts` `CommitSessionLink.confidence` widening, unrelated
+  in-progress Wave 4 track P); zero errors touching `packages/dashboard`. `npx eslint
+  packages/dashboard` — clean. `npx vitest run packages/dashboard` — 17/17 passed (9 new
+  range.test.ts + 8 server.test.ts, 2 of which are new).

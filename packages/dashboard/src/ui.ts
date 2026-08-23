@@ -1,6 +1,13 @@
 // Single-page dashboard HTML. All CSS/JS inline, zero external requests.
 // Client connects to /api/events (SSE) and renders on every push.
 
+import { DEFAULT_USAGE_RANGE, USAGE_RANGES, usageRangeLabel } from './range.ts'
+
+const rangeOptionsHtml = USAGE_RANGES.map(
+  (r) =>
+    `<option value="${r}"${r === DEFAULT_USAGE_RANGE ? ' selected' : ''}>${usageRangeLabel(r)}</option>`,
+).join('')
+
 const clientScript = `
 (function () {
   function escapeHtml(s) {
@@ -192,15 +199,31 @@ const clientScript = `
 
   initDocsToggle();
 
-  var es = new EventSource('/api/events');
-  es.onmessage = function (ev) {
-    try {
-      var snapshot = JSON.parse(ev.data);
-      render(snapshot);
-    } catch (e) {
-      /* ignore parse errors */
-    }
-  };
+  // Usage range selection (BL-0008). The dropdown's own DOM node is never touched
+  // by render(), so the selection survives every SSE push; changing it reconnects
+  // the stream with a new ?range= query string rather than pushing range over an
+  // open connection.
+  var es = null;
+  function connect(range) {
+    if (es) es.close();
+    es = new EventSource('/api/events?range=' + encodeURIComponent(range));
+    es.onmessage = function (ev) {
+      try {
+        var snapshot = JSON.parse(ev.data);
+        render(snapshot);
+      } catch (e) {
+        /* ignore parse errors */
+      }
+    };
+  }
+
+  var rangeSelect = document.getElementById('range-select');
+  connect(rangeSelect ? rangeSelect.value : 'today');
+  if (rangeSelect) {
+    rangeSelect.addEventListener('change', function () {
+      connect(rangeSelect.value);
+    });
+  }
 })();
 `
 
@@ -251,6 +274,16 @@ export const renderPage = (): string => `<!doctype html>
   .stat { min-width: 100px; }
   .stat .label { font-size: 11px; color: #6b7793; text-transform: uppercase; }
   .stat .value { font-size: 18px; color: #d8dee9; }
+  .range-select {
+    font-family: inherit;
+    font-size: 12px;
+    margin-left: 12px;
+    background: #161b22;
+    color: #d8dee9;
+    border: 1px solid #263043;
+    border-radius: 4px;
+    padding: 3px 6px;
+  }
   #docs-toggle {
     background: none;
     border: none;
@@ -327,7 +360,7 @@ export const renderPage = (): string => `<!doctype html>
       <li><strong>cache read</strong> — tokens read from prompt cache</li>
       <li><strong>cache create</strong> — tokens written to cache</li>
     </ul>
-    <p>The table breaks the same totals down by model. The output-tokens-per-minute figure in the header is a rate over the last five minutes, not an all-time average.</p>
+    <p>The table breaks the same totals down by model. The output-tokens-per-minute figure in the header is a rate over the last five minutes, not an all-time average. The dropdown next to the Usage heading scopes both the totals and the per-model table to a time window (last hour / today / all time) or an item-count window (last 100 / last 500 activities) — pick whichever fits better when activity is bursty.</p>
     <h3>Ideas</h3>
     <p>Backlog items with status "idea" — captured but untriaged. Click a row to expand its full elaboration (assumptions, design decisions, approach). Click the file link to open it in VSCode.</p>
     <h3>Backlog</h3>
@@ -357,7 +390,11 @@ export const renderPage = (): string => `<!doctype html>
   </section>
 
   <section>
-    <h2>Usage</h2>
+    <h2>Usage
+      <select id="range-select" class="range-select">
+        ${rangeOptionsHtml}
+      </select>
+    </h2>
     <div class="grid-usage" id="usage-totals"></div>
     <table id="usage-table">
       <thead>

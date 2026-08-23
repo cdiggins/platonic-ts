@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { startDashboard, type SnapshotProvider } from '../src/server.ts'
-import type { DashboardSnapshot } from '../../core/src/index.ts'
+import { startDashboard, type ActivitiesProvider, type SnapshotProvider } from '../src/server.ts'
+import type { AgentActivity, DashboardSnapshot } from '../../core/src/index.ts'
 
 const snapshot: DashboardSnapshot = {
   generatedAt: 1_700_000_000_000,
@@ -151,6 +151,71 @@ describe('startDashboard', () => {
 
     const res = await fetch(`http://localhost:${started.port}/nope`)
     expect(res.status).toBe(404)
+  })
+
+  it('leaves usage untouched when no activitiesProvider is supplied, even with ?range=', async () => {
+    const started = await startDashboard({ port: 0, provider: okProvider, pollIntervalMs: 50 })
+    close = started.close
+
+    const res = await fetch(`http://localhost:${started.port}/api/state?range=last-hour`)
+    const body = await readJson(res)
+    expect(body).toEqual(snapshot)
+  })
+
+  it('re-summarizes usage over the selected range when activitiesProvider is supplied', async () => {
+    const now = snapshot.generatedAt
+    const activities: readonly AgentActivity[] = [
+      {
+        file: 'a.jsonl',
+        sessionId: 's1',
+        timestamp: now - 2 * 60 * 60_000, // 2h ago: outside last-hour
+        kind: 'assistant',
+        model: 'claude-sonnet-5',
+        toolName: undefined,
+        inputTokens: 900,
+        outputTokens: 900,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+        snippet: undefined,
+        isSidechain: false,
+      },
+      {
+        file: 'a.jsonl',
+        sessionId: 's1',
+        timestamp: now - 30_000, // 30s ago: inside last-hour
+        kind: 'assistant',
+        model: 'claude-sonnet-5',
+        toolName: undefined,
+        inputTokens: 10,
+        outputTokens: 20,
+        cacheReadTokens: 1,
+        cacheCreationTokens: 2,
+        snippet: undefined,
+        isSidechain: false,
+      },
+    ]
+    const activitiesProvider: ActivitiesProvider = () => Promise.resolve(activities)
+    const started = await startDashboard({
+      port: 0,
+      provider: okProvider,
+      pollIntervalMs: 50,
+      activitiesProvider,
+    })
+    close = started.close
+
+    const resAll = await fetch(`http://localhost:${started.port}/api/state?range=all`)
+    const bodyAll = (await readJson(resAll)) as DashboardSnapshot
+    expect(bodyAll.usage.totalInputTokens).toBe(910)
+    expect(bodyAll.usage.outputTokensPerMinute).toBe(snapshot.usage.outputTokensPerMinute)
+
+    const resHour = await fetch(`http://localhost:${started.port}/api/state?range=last-hour`)
+    const bodyHour = (await readJson(resHour)) as DashboardSnapshot
+    expect(bodyHour.usage.totalInputTokens).toBe(10)
+    expect(bodyHour.usage.totalOutputTokens).toBe(20)
+
+    // Unknown/missing range falls back to the default rather than erroring.
+    const resDefault = await fetch(`http://localhost:${started.port}/api/state`)
+    expect(resDefault.status).toBe(200)
   })
 
   it('close() stops the server and frees the port', async () => {
