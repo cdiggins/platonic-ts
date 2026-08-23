@@ -19,3 +19,4 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0020](BL-0020-start-work-skill.md) | Add start-work command that records the execution approach | feature | ? | M | low | repo | idea |  |
 | [BL-0022](BL-0022-caveman-final-answer-clarity.md) | Drop caveman default — measured saving ~2%, override cost ~11% of turns | idea | ? | ? | low | repo | idea |  |
 | [BL-0023](BL-0023-archive-closed-items.md) | Move closed items to backlog/archive/ so the live backlog stays small | feature | ? | S | low | packages/backlog | idea |  |
+| [BL-0025](BL-0025-docs-regen-marker-blocks.md) | docs:regen — generated marker-block inventories with staleness gate | feature | ? | ? | low | repo | idea |  |
