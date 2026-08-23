@@ -16,3 +16,4 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0011](BL-0011-conformance-score.md) | Score purity, complexity, and quality against the platonic ideals | idea | ? | ? | ? | repo | idea |  |
 | [BL-0020](BL-0020-start-work-skill.md) | Add start-work command that records the execution approach | idea | ? | ? | low | repo | idea |  |
 | [BL-0021](BL-0021-vendor-parallel-wave-skill.md) | Vendor parallel-wave skill into repo, adapt, drop worktree framing | idea | ? | ? | low | repo | idea |  |
+| [BL-0022](BL-0022-caveman-final-answer-clarity.md) | Keep caveman for working output, make final answers clear | idea | ? | ? | low | repo | idea |  |
