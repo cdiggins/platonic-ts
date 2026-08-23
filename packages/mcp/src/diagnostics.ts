@@ -43,6 +43,9 @@ const lineOf = (diagnostic: ts.Diagnostic): number | undefined =>
     ? undefined
     : diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start).line + 1
 
+const plural = (amount: number, noun: string): string =>
+  `${amount} ${noun}${amount === 1 ? '' : 's'}`
+
 const at = (file: string, line: number | undefined): string =>
   line === undefined ? file : `${file}:${line}`
 
@@ -57,7 +60,7 @@ const reportErrors = (
     ? { count: 0, lines: [`${file}: clean`] }
     : {
         count: found.length,
-        lines: [`${file}: ${found.length} errors`].concat(
+        lines: [`${file}: ${plural(found.length, 'error')}`].concat(
           found.map((diagnostic) => `  ${describeDiagnostic(compiler, diagnostic)}`),
         ),
       }
@@ -73,8 +76,8 @@ export const diagnostics = (compiler: Compiler, files: readonly string[]): ToolO
   const total = reports.reduce((sum, report) => sum + report.count, 0)
   const header =
     total === 0
-      ? `no errors in ${known.length} files — ${SCOPE}`
-      : `${total} errors in ${known.length} files — ${SCOPE}`
+      ? `no errors in ${plural(known.length, 'file')} — ${SCOPE}`
+      : `${plural(total, 'error')} in ${plural(known.length, 'file')} — ${SCOPE}`
   return {
     ok: known.length > 0,
     text: [header].concat(reports.flatMap((report) => report.lines)).join('\n'),
@@ -135,7 +138,7 @@ export const codeFixes = (
   const byDiagnostic = [...new Set(offers.map((offer) => offer.diagnostic))]
   return {
     ok: true,
-    text: [`${offers.length} fixes at ${at(file, line)}`]
+    text: [`${offers.length} ${offers.length === 1 ? 'fix' : 'fixes'} at ${at(file, line)}`]
       .concat(
         byDiagnostic.flatMap((diagnostic) =>
           [describeDiagnostic(compiler, diagnostic)].concat(
@@ -173,7 +176,10 @@ export const applyCodeFix = (
     return listed(`no fix named ${fixName ?? ''} at ${at(file, line)}; available:`, offers)
   const chosen = candidates[0]
   if (chosen === undefined || candidates.length > 1)
-    return listed(`${candidates.length} fixes match at ${at(file, line)}; refusing to guess:`, candidates)
+    return listed(
+      `${candidates.length} fixes match at ${at(file, line)}; refusing to guess:`,
+      candidates,
+    )
   const created = newFilesIn(chosen.fix.changes)
   if (created.length > 0)
     return declined(

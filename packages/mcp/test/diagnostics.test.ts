@@ -16,8 +16,8 @@ describe('diagnostics', () => {
     const found = diagnostics(compilerOf(brokenSources), ['b.ts'])
     expect(found.ok).toBe(true)
     expect(found.text).toContain('b.ts:3 TS2322')
-    expect(found.text).toContain('b.ts: 1 errors')
-    expect(found.text.split('\n')[0]).toContain('1 errors in 1 files')
+    expect(found.text).toContain('b.ts: 1 error')
+    expect(found.text.split('\n')[0]).toContain('1 error in 1 file')
   })
 
   it('says it is not the gate, in the output itself', () => {
@@ -63,7 +63,8 @@ describe('codeFixes', () => {
 
   it('considers every diagnostic in the file when no line is given', () => {
     const listed = codeFixes(compilerOf(typeOnly), 'use.ts', undefined)
-    expect(listed.text).toContain('fixes at use.ts')
+    expect(listed.text).toContain('1 fix at use.ts')
+    expect(listed.text).toContain('use.ts:1 TS2304')
   })
 
   it('finds nothing on a line with no diagnostic', () => {
