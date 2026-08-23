@@ -236,3 +236,34 @@ packages/check` — 16/16 passed (11 ratchet.test.ts + 5 baseline.test.ts).
 - Gates (transcripts package only): `tsc --noEmit` clean (pre-existing unrelated errors in
   `packages/gitlink` from Track P, outside this fence, left as-is); `vitest run
   packages/transcripts` 24/24 pass (was 15, +9 new); `eslint packages/transcripts` clean.
+
+### Track Q (wave 4) — hook lifecycle by workflow shape (BL-0015)
+
+- Wrote `docs/hook-lifecycle-by-workflow-shape-2026-08-22.md`. Sourced from
+  `code.claude.com/docs/en/hooks` + `/hooks-guide` (the `docs.claude.com/en/docs/claude-code/*`
+  URLs 301 to `code.claude.com/docs/en/*` — update any stale links).
+- The documented event set is ~31 events, not the 9 BL-0015 assumed. Beyond the familiar ones:
+  `Setup`, `UserPromptExpansion`, `StopFailure`, `PostToolUseFailure`, `PostToolBatch`,
+  `PermissionRequest`, `PermissionDenied`, `SubagentStart`, `TaskCreated`/`TaskCompleted`,
+  `TeammateIdle`, `PostCompact`, `FileChanged`, `DirectoryAdded`, `CwdChanged`,
+  `WorktreeCreate`/`WorktreeRemove`, `ConfigChange`, `InstructionsLoaded`, `MessageDisplay`,
+  `Elicitation`/`ElicitationResult`.
+- Two facts that change BL-0004's design: (a) `PostToolUse` fires only on SUCCESS — failures are
+  a separate `PostToolUseFailure` event, so the planned wiring silently drops every failed tool
+  call; (b) subagents run the SAME configured hooks as the main thread, tagged with `agent_id` /
+  `agent_type`, so `PostToolUse` alone already sees wave traffic but with no start/end markers.
+- `SessionStart` over-counts: it fires with `source` ∈ startup|resume|clear|compact|fork. One
+  terminal session that compacts twice and clears once emits four `SessionStart` events. Record
+  `source`, don't count bare starts.
+- Subagent frontmatter converts a `Stop` hook to `SubagentStop`; `Stop` is main-thread only.
+- Headless (`-p`): subagent frontmatter hooks do NOT run (a `-p` session doesn't count as
+  accepting workspace trust); skill frontmatter hooks DO. `PreToolUse` is the documented
+  permission mechanism in `-p`, and has a `-p`-only `"defer"` decision value.
+- Recommended minimum emitter set for full shape coverage: SessionStart(+source), SessionEnd,
+  UserPromptSubmit, PostToolUse, PostToolUseFailure, SubagentStart, SubagentStop, Stop,
+  PreCompact. Avoid `MessageDisplay` for logging — unbounded volume, fires while text streams.
+- Left explicitly unverified (docs silent, needs BL-0004's log to settle): whether subagent
+  events share the parent `session_id`; ordering of `PostCompact` vs `SessionStart(compact)`;
+  whether `Notification` fires headless; `SessionEnd` reason for a `-p` exit; whether a
+  model-invoked (vs user-typed) skill fires `UserPromptExpansion`. The docs cover none of
+  BL-0015's /loop, cron, remote, or Workflow shapes by name.
