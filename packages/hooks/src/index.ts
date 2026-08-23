@@ -1,7 +1,10 @@
 // Pure event type + JSONL codec for Claude Code hook events. IO (reading hook stdin payloads,
-// appending to the event log) lives in postToolUse.ts / sessionStart.ts.
+// appending to the event log) lives in postToolUse.ts / sessionStart.ts. Tailing live events
+// is via tail.ts (pollHookEvents).
 
 import { asString, isRecord } from './payload.ts'
+export type { HookTailState } from './tail.ts'
+export { createHookTailState, pollHookEvents } from './tail.ts'
 
 export type HookEvent = {
   readonly type: 'tool' | 'session-start'
