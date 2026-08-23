@@ -14,3 +14,4 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0018](BL-0018-dashboard-close-hang.md) | Dashboard close() can hang on leaked keep-alive sockets | bug | p3 | S | low | dashboard | ready |  |
 | [BL-0019](BL-0019-symbol-endpoint-and-trimmed-index.md) | Give references a symbol envelope and trim the index payload | debt | p3 | M | low | codeview | ready |  |
 | [BL-0011](BL-0011-conformance-score.md) | Score purity, complexity, and quality against the platonic ideals | idea | ? | ? | ? | repo | idea |  |
+| [BL-0020](BL-0020-track-work-skill.md) | Add track-work skill for capturing scoped work items | idea | ? | ? | low | repo | idea |  |
