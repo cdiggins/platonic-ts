@@ -73,6 +73,12 @@ const okProvider: SnapshotProvider = () => Promise.resolve(snapshot)
 const readJson = async (res: Response): Promise<unknown> => (await res.json()) as unknown
 const parseJson = (text: string): unknown => JSON.parse(text) as unknown
 
+// Guard-based drill into a snapshot body's usage field, so range assertions need no cast.
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+const usageField = (body: unknown, key: string): unknown =>
+  isRecord(body) && isRecord(body['usage']) ? body['usage'][key] : undefined
+
 describe('startDashboard', () => {
   let close: (() => Promise<void>) | undefined
 
@@ -204,14 +210,14 @@ describe('startDashboard', () => {
     close = started.close
 
     const resAll = await fetch(`http://localhost:${started.port}/api/state?range=all`)
-    const bodyAll = (await readJson(resAll)) as DashboardSnapshot
-    expect(bodyAll.usage.totalInputTokens).toBe(910)
-    expect(bodyAll.usage.outputTokensPerMinute).toBe(snapshot.usage.outputTokensPerMinute)
+    const bodyAll = await readJson(resAll)
+    expect(usageField(bodyAll, 'totalInputTokens')).toBe(910)
+    expect(usageField(bodyAll, 'outputTokensPerMinute')).toBe(snapshot.usage.outputTokensPerMinute)
 
     const resHour = await fetch(`http://localhost:${started.port}/api/state?range=last-hour`)
-    const bodyHour = (await readJson(resHour)) as DashboardSnapshot
-    expect(bodyHour.usage.totalInputTokens).toBe(10)
-    expect(bodyHour.usage.totalOutputTokens).toBe(20)
+    const bodyHour = await readJson(resHour)
+    expect(usageField(bodyHour, 'totalInputTokens')).toBe(10)
+    expect(usageField(bodyHour, 'totalOutputTokens')).toBe(20)
 
     // Unknown/missing range falls back to the default rather than erroring.
     const resDefault = await fetch(`http://localhost:${started.port}/api/state`)

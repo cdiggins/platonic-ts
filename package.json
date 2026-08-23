@@ -12,7 +12,8 @@
     "check": "tsx packages/check/src/main.ts",
     "dashboard": "tsx packages/dashboard/src/main.ts",
     "backlog:regen": "tsx packages/backlog/src/main.ts regen",
-    "codeview": "tsx packages/codeview/src/main.ts"
+    "codeview": "tsx packages/codeview/src/main.ts",
+    "init": "tsx packages/init/src/main.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

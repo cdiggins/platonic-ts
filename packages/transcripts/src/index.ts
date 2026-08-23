@@ -33,6 +33,10 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 const asString = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined)
 
+// Every record is a valid ContentBlock (all props optional), so a filter is enough — no cast.
+const asContentBlocks = (value: unknown): readonly ContentBlock[] =>
+  Array.isArray(value) ? value.filter(isRecord) : []
+
 const asNumber = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
 
 const firstBlockOfType = (
@@ -101,7 +105,7 @@ export const parseTranscriptLine = (file: string, line: string): AgentActivity |
   if (type === 'assistant') {
     const message = isRecord(parsed.message) ? parsed.message : undefined
     const model = message ? asString(message.model) : undefined
-    const content = message && Array.isArray(message.content) ? (message.content as ContentBlock[]) : []
+    const content = message ? asContentBlocks(message.content) : []
     const toolUse = firstBlockOfType(content, 'tool_use')
     const textBlock = firstBlockOfType(content, 'text')
     const toolName = toolUse ? asString(toolUse.name) : undefined
@@ -132,7 +136,7 @@ export const parseTranscriptLine = (file: string, line: string): AgentActivity |
     if (typeof content === 'string') {
       snippetText = content
     } else if (Array.isArray(content)) {
-      const blocks = content as ContentBlock[]
+      const blocks = asContentBlocks(content)
       if (blocks.length > 0 && blocks.every((b) => b.type === 'tool_result')) {
         kind = 'tool_result'
       } else {
@@ -224,7 +228,7 @@ export const parseToolInvocations = (file: string, line: string): readonly ToolI
   const sessionId = asString(parsed.sessionId)
   const timestamp = asString(parsed.timestamp)
   const message = isRecord(parsed.message) ? parsed.message : undefined
-  const content = message && Array.isArray(message.content) ? (message.content as ContentBlock[]) : []
+  const content = message ? asContentBlocks(message.content) : []
   const toolUseBlocks = allBlocksOfType(content, 'tool_use')
 
   return toolUseBlocks

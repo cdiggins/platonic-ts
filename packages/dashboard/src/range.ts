@@ -30,7 +30,7 @@ export const usageRangeLabel = (range: UsageRangeKey): string => {
 // Accepts an arbitrary query-param value and returns a valid range, falling back
 // to the default for anything unrecognized (missing param, typo, stale client).
 export const parseUsageRange = (value: string | undefined): UsageRangeKey =>
-  USAGE_RANGES.includes(value as UsageRangeKey) ? (value as UsageRangeKey) : DEFAULT_USAGE_RANGE
+  USAGE_RANGES.find((range) => range === value) ?? DEFAULT_USAGE_RANGE
 
 const startOfDay = (now: number): number => {
   const d = new Date(now)

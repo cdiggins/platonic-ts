@@ -96,7 +96,12 @@ const main = async (): Promise<void> => {
   }
 
   const port = Number(process.env['PORT'] ?? 4747)
-  const started = await startDashboard({ port, provider, pollIntervalMs: 2_000 })
+  const started = await startDashboard({
+    port,
+    provider,
+    pollIntervalMs: 2_000,
+    activitiesProvider: () => Promise.resolve(activities),
+  })
   console.log(`platonic dashboard: http://localhost:${started.port}`)
   console.log(`watching transcript dirs:\n  ${dirs.join('\n  ')}`)
 }
