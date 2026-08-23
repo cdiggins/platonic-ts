@@ -24,7 +24,7 @@ npm run stats       # size distributions of this repo's functions, statements, e
 | `packages/codemap` | Builds a `CodeIndex` of the repo: symbols, references, quality metrics. Pure; IO in `src/io.ts`; change detection in `src/watch.ts`. `openSession`/`updateSession` rebuild only what changed. `npm run stats` reports size distributions by zone. |
 | `packages/codeview` | Code overview browser (BL-0016) on port 4848 — source, navigation, metrics, readmes, feedback box. |
 | `packages/dashboard` | HTTP + SSE server and single-page UI; composition in `src/main.ts`. Agent observability only — transcripts, usage, backlog, docs. Source browsing, symbol navigation, and code metrics/quality scoring are out of scope and belong to a separate app; do not add them here (see `docs/tools-and-process.md`). |
-| `packages/mcp` | MCP server (BL-0026) over the code index: outlines, one declaration at a time, type-checked references, rename, name-addressed editing, and the check gate. Prefer these over reading whole files, grepping, and text-matching edits — see `docs/mcp-server-2026-08-23.md`. |
+| `packages/mcp` | MCP server (BL-0026) over the code index: 33 tools — outlines, declarations, type-checked references, inferred types, diagnostics, dependency analyses, name-addressed editing, move/rename/signature transformations, checkpoint and revert, and the check gate. Every write tool takes `preview`. Prefer these over reading whole files, grepping, and text-matching edits — see `docs/mcp-server-2026-08-23.md` and `docs/refactoring-tools-built-2026-08-23.md`. |
 | `backlog/` | One markdown file per work item (format in CONTRACTS.md). |
 | `docs/` | Design notes; the dashboard lists them. |
 

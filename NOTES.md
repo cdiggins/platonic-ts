@@ -734,3 +734,105 @@ listed below. Findings by track.
   but their statements are the densest in the repository. The pooled median describes none of
   the three.
 
+
+## Wave 5 — refactoring tools for the MCP server
+
+Eight tracks, one shared worktree, disjoint fences. Everything below came back from a track
+that hit it; the supervisor appended it verbatim or lightly edited.
+
+### The contract that made it parallel
+
+`Workspace` is deliberately unbound — files are parsed without a checker, which is what makes
+the existing tools fast. Most of the new tools need the checker, so `compiler.ts` landed first:
+a `Compiler` is the workspace plus a TypeScript program and language service over the same
+texts, and `toFileEdits` converts what the language service computes into the existing
+`FileEdit` shape. Eight tracks then built against it without meeting, and the assembly
+typechecked on first integration.
+
+Two things cost real debugging and are now settled once:
+
+- **A file-only language-service host resolves nothing.** Module resolution walks directories
+  before it looks at files, so a host that answers `fileExists` but not `directoryExists`
+  reports `TS2307` for every import. The directories are derived from the file paths.
+- **The language service throws on a file the program does not contain.** `Could not find
+  source file` escapes rather than returning a failure — it takes the server down instead of
+  declining. Every entry point gates on `boundSourceFile(file) !== undefined` first.
+
+### Overlapping edits corrupt files silently (Tracks C and F)
+
+`applyEdits` sorts back to front and reduces, so an edit whose range contains another lands
+second and overwrites it, carrying the text the first edit already replaced. Nothing about the
+failure is visible in the result — the file is simply wrong. It is not theoretical: Track F hit
+it on `twice(twice(1))`, where two call sites nest, and the compiler's own import edits replace
+a whole import block as one span, which overlaps anything else editing that region.
+
+Two tracks derived the same range rule independently. It now lives once, beside `applyEdits`,
+and `writeEdits` checks it — which covers every write tool including the three that predate
+this wave.
+
+### An import is a reference (Tracks E, F, G)
+
+`collectReferences` records `import { x } from …` and `export { x } from …` clauses with
+`isDefinition: false`, identically to a real call. A tool that treats every non-definition
+reference as a use reports each importing module as a caller of everything it imports, and each
+test file's import line as a test. Every reference-walking tool filters ancestors for
+`ImportDeclaration`/`ImportEqualsDeclaration`/`ExportDeclaration`. This belongs in the index's
+own documentation — every future tool over `references` hits it.
+
+### The nearest named declaration is the wrong owner (Track G)
+
+Resolving a reference to the innermost *named* declaration gives, in this codebase's style,
+almost always a local `const`. On the real repository `callers of resolveSymbol` returned 80
+"callers" that were local variables calling their siblings. Restricting owners to declarations
+with a body cut it to 22 real ones and made it five times faster. Pure-functional style with
+heavy local `const` use makes this failure mode much louder here than it would be elsewhere.
+
+### The compiler generates code this repository bans (Tracks B and F)
+
+`fixMissingFunctionDeclaration` emits `throw new Error(…)`, which PS-003 forbids.
+`Convert named export to default export` — the most commonly applicable refactoring here —
+produces a default export, which PS-022 forbids. Both are reachable through `apply_code_fix`
+and `apply_refactor`, and both are noted in those tools' descriptions rather than filtered,
+since the caller may have a reason.
+
+Related: `fixName` is not a unique key. Two importable modules produce two fixes both named
+`import`, distinguishable only by description, so `apply_code_fix` declines on multiple matches
+even when given a name. And a plain type error (`TS2322`) offers no fixes at all, so an empty
+result from `code_fixes` is the common case rather than an error.
+
+### What `revert` cannot undo (Track D)
+
+`EditPlan` expresses replacements, not file creation or deletion, so `revert` can never undo a
+refactoring that added or removed a file — which includes what `move_symbol` and `rename_file`
+do. It refuses the whole restore and names the files rather than half-undoing, because a
+partial revert leaving a new file behind is the failure the tool exists to prevent. Extending
+`EditPlan` with create and delete variants is the change that would lift this.
+
+`restorePlan` computes each edit's `end` from the **current** text, never the snapshot.
+`writeEdits` compares against the indexed text before writing, so a snapshot-derived `end`
+truncates every file that grew and overruns every file that shrank. Two tests assert the
+direction so a swap fails loudly rather than corrupting files.
+
+### Smaller findings
+
+- `typeToString` prints an alias's name back at you: asking for the type of `Point` answers
+  `type Point`. `InTypeAlias`, applied only when the parent is a type-alias declaration,
+  expands the shape while leaving `typeOf` on a *value* of type `Point` saying `Point`.
+- Inherited-member attribution must compare against the type's own name, not the looked-up
+  name; using the lookup name marked every member of `const point: Point` as inherited.
+  `ts.Symbol.parent` is internal, so ownership walks `declaration.parent` instead.
+- `formatSettings` does not rewrite `.ts` specifiers to `.js` despite
+  `importModuleSpecifierEnding: 'js'`. Generated imports arrive in house style already.
+- `organizeImports` returns no changes for an already-tidy file, so an empty edit list is the
+  reliable "nothing to do" signal.
+- Two texts differing only in their trailing newline split into identical line arrays, so a
+  line diff of them vanishes. `unifiedDiff` converts the final context line into a
+  delete/insert pair, which is what git prints.
+- Removing an import and adding one in the same file overlap unless fused: the natural
+  implementation anchors the insertion inside the range it is deleting. The emptied statement
+  is *replaced* by the new ones instead.
+- `getApplicableRefactors` depends on surrounding text, not just the declaration — the same
+  declaration answered differently in two fixtures that differed only in later statements.
+  Do not write golden tests against the full refactor list.
+- The catalogue costs about 4,800 tokens on every request, for 33 tools. A test holds a
+  ceiling on it, because the cost is continuous and the benefit is per-use.

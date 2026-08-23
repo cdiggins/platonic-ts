@@ -1,6 +1,6 @@
 # Contracts — fences and seams
 
-## Wave 5 fences (current) — refactoring tools for the MCP server
+## Wave 5 fences (landed) — refactoring tools for the MCP server
 
 Builds the tools ranked in `docs/refactoring-tool-candidates-2026-08-23.md`, in four layers.
 Every track writes **pure functions with their own tests**; nothing is wired into the tool
@@ -22,8 +22,8 @@ Supervisor-owned (READ only for every track; report needed changes, never edit):
 | D checkpoint | 2 | `packages/mcp/src/checkpoint.ts`, `packages/mcp/test/checkpoint.test.ts` | `checkpoint`, `revert` |
 | E move | 3 | `packages/mcp/src/move.ts`, `packages/mcp/test/move.test.ts` | `move_symbol`, `rename_file` |
 | F signature | 3 | `packages/mcp/src/signature.ts`, `packages/mcp/src/refactor.ts`, `packages/mcp/test/signature.test.ts`, `packages/mcp/test/refactor.test.ts` | `change_signature`, `apply_refactor` |
-| G graph | 4 | `packages/mcp/src/graph.ts`, `packages/mcp/test/graph.test.ts` | `callers`, `module_graph`, `unused_exports`, `implementations`, `tests_for_symbol`, `blast_radius` |
-| H inspect | 4 | `packages/mcp/src/inspect.ts`, `packages/mcp/test/inspect.test.ts` | `symbol_metrics`, `escape_hatch_index`, `delete_symbol`, `symbol_diff` |
+| G graph | 4 | `packages/mcp/src/graph.ts`, `packages/mcp/src/reach.ts`, `packages/mcp/test/graph.test.ts`, `packages/mcp/test/reach.test.ts` | `callers`, `module_graph`, `unused_exports`, `implementations`, `tests_for_symbol`, `blast_radius` |
+| H inspect | 4 | `packages/mcp/src/inspect.ts`, `packages/mcp/test/inspect.test.ts` (split into `inspect.ts` + `review.ts` at integration) | `symbol_metrics`, `escape_hatch_index`, `delete_symbol`, `symbol_diff` |
 | S5 supervisor | — | `tools.ts`, `server.ts`, `index.ts`, docs, everything else | wiring, full gate, push |
 
 ### Wave 5 seam — the shape every tool takes
