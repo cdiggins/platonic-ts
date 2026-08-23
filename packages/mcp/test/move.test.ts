@@ -215,6 +215,44 @@ describe('moveSymbol', () => {
     )
   })
 
+  it('declines when the symbol is re-exported, which this tool does not rewrite', () => {
+    const set = {
+      'a.ts': lines('export const twice = (value: number): number => value * 2', ''),
+      'b.ts': lines('export const untouched = 0', ''),
+      'index.ts': lines("export { twice } from './a.ts'", ''),
+    }
+    expect(declinedText(moveSymbol(workspaceOf(set), 'twice', undefined, 'b.ts'))).toBe(
+      'twice is re-exported by index.ts; move it by hand.',
+    )
+  })
+
+  it('does not count an import specifier as the source file still using the name', () => {
+    const set = {
+      'a.ts': lines(
+        "import { spare } from './shared.ts'",
+        '',
+        'export const twice = (value: number): number => spare + value',
+        '',
+      ),
+      'b.ts': lines('export const untouched = 0', ''),
+      'shared.ts': lines('export const spare = 1', ''),
+    }
+    const plan = moveSymbol(workspaceOf(set), 'twice', undefined, 'b.ts')
+    // The import the moved declaration used is left where it was: unused, not
+    // broken. organize_imports is the tool that removes it.
+    expect(applied(set, plan, 'a.ts')).toBe(lines("import { spare } from './shared.ts'", ''))
+    expect(applied(set, plan, 'b.ts')).toBe(
+      lines(
+        "import { spare } from './shared.ts'",
+        '',
+        'export const untouched = 0',
+        '',
+        'export const twice = (value: number): number => spare + value',
+        '',
+      ),
+    )
+  })
+
   it('carries a dependency that lives in a third file into the target', () => {
     const set = {
       'a.ts': lines(
