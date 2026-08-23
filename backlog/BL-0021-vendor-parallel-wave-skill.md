@@ -62,8 +62,8 @@ for spikes and long-running background agents — never wave tracks).
   cite it.
 - [AGENTS.md:31] — "No branches, no worktrees" + pull-rebase rule the skill must restate in
   track prompts.
-- [BL-0020] — track-work idea names parallel-wave as a mid-task filer of backlog items; a
-  repo-local copy can reference /track-issue//track-work directly by path.
+- [BL-0020] — start-work idea names parallel-wave as its parallel handoff target; a
+  repo-local copy can reference /track-issue and /start-work directly by path.
 
 ## Approaches
 
