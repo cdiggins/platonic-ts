@@ -31,3 +31,11 @@ Commit to `main` with pathspec (`git commit -- <paths>`); push only after a veri
 milestone (`git pull --rebase` first — parallel agents collide). No branches, no worktrees.
 Pure functional style, zero runtime deps, relative imports across packages.
 Full rules in [docs/style-guide.md](docs/style-guide.md); breaking one requires PS-056.
+
+## Prose style (docs, summaries, reports)
+
+Write for an experienced developer, but strip jargon and shorthand: prefer standard
+vocabulary over coined terms ("lock" not "fence", "authoritative check" not "sacred");
+when a project-specific term must appear, define it in a plain clause on first use.
+One idea per sentence; no nested parentheticals doing the real work. Worked example:
+version #11 in [docs/summary-style-explorations-2026-08-23.md](docs/summary-style-explorations-2026-08-23.md).
