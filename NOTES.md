@@ -212,6 +212,46 @@ packages/check` — 16/16 passed (11 ratchet.test.ts + 5 baseline.test.ts).
 - Gratify: tsc clean under its own config, 322 error lines under platonic strict flags.
   Confirms the ratchet thesis: retrofit needs baseline-and-tighten, not fix-everything-first.
 
+### Track K — hooks seam (BL-0004, Wave 4)
+
+Files: `packages/hooks/package.json`, `src/index.ts`, `src/payload.ts`, `src/io.ts`,
+`src/postToolUse.ts`, `src/sessionStart.ts`, `README.md`, `test/hooks.test.ts`.
+
+Exports match the seam exactly from `src/index.ts`: `HookEvent`, `parseHookEventLine`,
+`formatHookEvent`. Split IO into `src/io.ts` (`readStdinPayload`, `appendHookEvent`) so the
+codec stays pure/testable, and shared payload guards into `src/payload.ts` (`isRecord`,
+`asString`) reused by both entry scripts — mirrors the `packages/transcripts` style. Both
+`postToolUse.ts`/`sessionStart.ts` export their `buildEvent` (and `postToolUse.ts` also
+`skillNameFrom`) purely so tests can exercise payload mapping without touching stdin; the
+seam only names `index.ts` exports so this is additive, not a deviation.
+
+Gotcha worth flagging for future hook-script tracks: a runnable entry script that calls
+`main()` unconditionally at module scope hangs forever when *imported* by a test file,
+because `readStdinPayload` -> `readFileSync(0, 'utf8')` blocks waiting for EOF on the test
+runner's stdin (a TTY/pipe that never closes) — `npx vitest run packages/hooks` sat with zero
+output past its timeout until this was found. Fixed by gating the call: `const isMainModule =
+process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href; if
+(isMainModule) main()`. Any future package with a stdin-reading CLI entry point should use the
+same guard rather than a bare top-level `main()` call.
+
+`exactOptionalPropertyTypes: true` shaped `HookEvent` construction throughout: optional fields
+(`tool`/`skill`/`cwd`) are added via conditional object spread (`...(x === undefined ? {} :
+{ x })`) rather than ever assigning `field: undefined`, in both the pure codec and the two
+entry scripts' `buildEvent`.
+
+`.claude/settings.json` wiring is intentionally NOT written this wave (per contract) — the
+JSON snippet a human pastes in lives in `packages/hooks/README.md`.
+
+Gate results (this fence): `npx tsc --noEmit` — 0 errors under `packages/hooks` (pre-existing
+errors surfaced in `packages/gitlink` and `packages/transcripts` from other Wave 4 tracks, not
+touched, not caused by this track). `npx eslint packages/hooks` — 0 errors/warnings. `npx
+vitest run packages/hooks` — 17/17 passed (round-trip x2, malformed-line tolerance x6,
+postToolUse mapping/skill-extraction x5, sessionStart mapping x3, `appendHookEvent` temp-dir
+append x1).
+
+No contract friction, no dependency requests — `node:fs`, `node:fs/promises`, `node:os`,
+`node:path`, `node:url` only.
+
 ### Track N — invocations seam (BL-0012 library half, Wave 4)
 
 - Added `ToolInvocation` type and `parseToolInvocations(file, line)` beside the existing
@@ -344,3 +384,31 @@ packages/check` — 16/16 passed (11 ratchet.test.ts + 5 baseline.test.ts).
   in-progress Wave 4 track P); zero errors touching `packages/dashboard`. `npx eslint
   packages/dashboard` — clean. `npx vitest run packages/dashboard` — 17/17 passed (9 new
   range.test.ts + 8 server.test.ts, 2 of which are new).
+
+### Track P — gitlink seam (BL-0014 library half, Wave 4)
+
+- New package `packages/gitlink` (private, type module, exports `./src/index.ts`).
+- Pure library `src/index.ts`: `GIT_LOG_FORMAT` constant documents the git log format string
+  (`%H%x1f%aI%x1f%s%x1f%(trailers)%x1e` — records delimited by ASCII 0x1e, fields by 0x1f),
+  `CommitInfo` type (hash, ISO timestamp, subject, trailers dict), `parseGitLog(raw): readonly
+  CommitInfo[]` (parses git output, skips malformed records, extracts trailers as key:value),
+  `CommitSessionLink` type (hash, sessionId?, sessionFile?, confidence: 'trailer'|'time-window'|
+  'none'), `correlateCommits(commits, activities): readonly CommitSessionLink[]` (trailer match
+  wins; else nearest session activity within ±10 min; else 'none'). Trailer priority: `Session-Id`
+  > `Co-Authored-By`. No child_process here, pure derivation with `.map()`/`.filter()` idioms.
+- Impure `src/io.ts`: `readGitLog(repoDir): Promise<string>` shells to `git log` via
+  `node:child_process` (one edge for caller to run git on demand, pure parsing separate).
+- Tests `test/gitlink.test.ts`: 22 vitest cases — GIT_LOG_FORMAT exports (5 checks),
+  parseGitLog round-trip and edge cases (8: empty input, single commit, trailers, multiple
+  commits, missing fields, whitespace handling, with/without trailers), correlateCommits (9:
+  trailer match, Co-Authored-By, priority, time-window ±10min, rejection >10min, closest-win
+  tiebreaker, empty inputs, trailer-over-time precedence, readonly arrays), round-trip scenario
+  (1 realistic fixture with mixed outcomes).
+- No external deps, no `any`/`as`/`!` (except `as const` where TypeScript's type inference
+  narrowing didn't go far enough — not the case in final clean code). Pure functional style with
+  immutable derivations per the repo's `functional/immutable-data` rule.
+- Trailer parsing: defensive extraction via `.map()` over lines, `.filter()` to drop malformed
+  (no colon, empty key/value), `.Object.fromEntries()` to build the dict immutably.
+- Gates: `npx tsc --noEmit` clean (gitlink only — pre-existing errors outside this fence in
+  `packages/init`, unrelated), `npx vitest run packages/gitlink` 22/22 passed, `npx eslint
+  packages/gitlink` clean.
