@@ -55,3 +55,26 @@ the conversation that produced it.
 
 Worked example: version #11 in
 [docs/summary-style-explorations-2026-08-23.md](docs/summary-style-explorations-2026-08-23.md).
+
+## Documenting exports
+
+When you create an exported declaration, or touch one that has no doc comment, leave it
+with one `//` line above it stating its purpose or contract — what a caller can rely on,
+not what the code does step by step (that is PS-050's job to prevent).
+
+- **Earn the line.** It must say something the name and signature do not. If deleting the
+  comment would lose nothing, do not write it. "Builds a workspace from sources" above
+  `workspaceOf(sources)` is noise; "Symbols resolve but line numbers are fake" is a doc.
+- **Write from evidence.** A claim about behavior must come from the body, a call site, or
+  a covering test — never from what the name suggests. If those three do not make the
+  purpose clear, do not guess: leave the declaration undocumented and note what you could
+  not determine (a review comment, a NOTES.md line, or a backlog item). An honest gap
+  beats a wrong doc, because readers trust the doc over the code.
+- **Timeless present tense.** The comment describes the code as it is, addressed to the
+  next reader — never the change you just made or the reviewer of your diff. "Now
+  handles the empty case", "refactored to use X", and anything with "previously" or
+  "updated" is diff narration and will be stale the moment it merges.
+- **Contract before mechanism.** Prefer the guarantee ("returns the same index a full
+  rebuild would produce") over the implementation ("iterates changed files and merges
+  maps") — mechanisms change without the comment noticing; contracts fail tests when
+  they change.
