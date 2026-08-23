@@ -83,9 +83,9 @@ comments by re-reading files inside the query — doc lines come from the index 
 BL-0019's split, so the query stays pure over `CodeIndex`.
 
 ## Done means
-- [ ] A tool call returns the repository's most-referenced exported declarations with
+- [x] A tool call returns the repository's most-referenced exported declarations with
       signatures, trimmed to a token budget
-- [ ] A scout subagent definition exists with the fixed report contract
+- [x] A scout subagent definition exists with the fixed report contract
 - [ ] The fuzzy-question benchmark runs: scout vs text-search baseline, reporting tokens and
       hit rate
 - [ ] The `throttle`/`debounce`-shaped question (right answer under a different name) is

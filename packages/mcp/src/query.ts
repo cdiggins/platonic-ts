@@ -140,9 +140,43 @@ export const search = (
   }
 }
 
+// Take lines from the front until their cumulative length passes the budget.
+const withinBudget = (lines: readonly string[], budget: number): readonly string[] => {
+  const totals = lines.reduce<readonly number[]>(
+    (sums, line) => sums.concat((sums.at(-1) ?? 0) + line.length + 1),
+    [],
+  )
+  return lines.filter((_, index) => (totals[index] ?? Infinity) <= budget)
+}
+
+// Ranked by how often the rest of the repository uses it — plain reference
+// counts, not graph centrality. The count is a proxy for "worth knowing about",
+// and BL-0028's measurement decides whether the proxy ever misleads here.
+const rankedDeclarations = (workspace: Workspace, budget: number): readonly string[] => {
+  const uses = workspace.index.references
+    .filter((reference) => !reference.isDefinition)
+    .reduce(
+      (counts: ReadonlyMap<string, number>, reference) =>
+        new Map([...counts, [reference.symbolId, (counts.get(reference.symbolId) ?? 0) + 1]]),
+      new Map<string, number>(),
+    )
+  const lines = workspace.index.symbols
+    .filter((symbol) => symbol.exported && symbol.containerName === undefined)
+    .map((symbol) => ({ symbol, count: uses.get(symbol.id) ?? 0 }))
+    .filter((entry) => entry.count > 0)
+    .sort((left, right) => right.count - left.count)
+    .map((entry) => `${describeSymbol(entry.symbol)} — ${entry.count} uses`)
+  const shown = withinBudget(lines, budget)
+  return shown.length === 0
+    ? []
+    : [`Most-used exports (${shown.length} of ${lines.length}):`].concat(shown)
+}
+
+export const DEFAULT_MAP_BUDGET = 4000
+
 // Folders with no measured lines hold documents rather than code; their file
 // count is already in the total, and a quality score for them means nothing.
-export const repoMap = (workspace: Workspace): ToolOutput => ({
+export const repoMap = (workspace: Workspace, budget?: number): ToolOutput => ({
   ok: true,
   text: [`${workspace.index.files.length} files, ${workspace.index.symbols.length} declarations`]
     .concat(
@@ -153,5 +187,6 @@ export const repoMap = (workspace: Workspace): ToolOutput => ({
             `${folder.path} — ${folder.fileCount} files, ${folder.metrics.lines} lines, score ${folder.metrics.platonicScore}`,
         ),
     )
+    .concat(rankedDeclarations(workspace, budget ?? DEFAULT_MAP_BUDGET))
     .join('\n'),
 })

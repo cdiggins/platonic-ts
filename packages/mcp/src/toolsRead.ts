@@ -38,8 +38,12 @@ export const navigationTools: readonly ToolSpec[] = [
   ),
   tool(
     'repo_map',
-    'One line per folder: file count, lines, and the quality score. Use to orient in an unfamiliar repository before reading anything.',
-    {},
+    'One line per folder — file count, lines, quality score — then the most-used exported declarations with signatures, ranked by how often the rest of the repository uses them. Use to orient in an unfamiliar repository, and to see what already exists before writing something new.',
+    {
+      budget: count(
+        'Characters allowed for the ranked declarations (default 4000; 0 omits them).',
+      ),
+    },
     [],
   ),
 ]

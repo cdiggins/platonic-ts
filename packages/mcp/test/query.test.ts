@@ -91,4 +91,23 @@ describe('repoMap', () => {
   it('counts what the index holds', () => {
     expect(repoMap(workspace).text).toContain('declarations')
   })
+
+  it('ranks exported declarations by use, leaving out the unused', () => {
+    const text = repoMap(workspace).text
+    expect(text).toContain('Most-used exports')
+    expect(text).toContain('function twice(point: Point): number — 2 uses')
+    expect(text).toContain('type Point')
+    expect(text).not.toContain('total')
+  })
+
+  it('trims the ranked list to the budget', () => {
+    const lines = repoMap(workspace, 60).text.split('\n')
+    const ranked = lines.filter((line) => line.includes('uses'))
+    expect(ranked).toHaveLength(1)
+    expect(repoMap(workspace, 60).text).toContain('(1 of 2)')
+  })
+
+  it('omits the ranked list at budget zero', () => {
+    expect(repoMap(workspace, 0).text).not.toContain('Most-used exports')
+  })
 })

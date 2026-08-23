@@ -114,7 +114,7 @@ const readTool = async (
         : search(await workspace(), query, readText(args, 'kind'), readFlag(args, 'all'))
     }
     case 'repo_map':
-      return repoMap(await workspace())
+      return repoMap(await workspace(), readCount(args, 'budget'))
     case 'type_of':
       return symbol === undefined ? missing('name') : typeOf(await compiler(), symbol, file)
     case 'members_of':
