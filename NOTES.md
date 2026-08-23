@@ -211,3 +211,28 @@ packages/check` — 16/16 passed (11 ratchet.test.ts + 5 baseline.test.ts).
   scanner paid off; only the packages/*-shaped scanRepo wrapper is platonic-ts-specific.
 - Gratify: tsc clean under its own config, 322 error lines under platonic strict flags.
   Confirms the ratchet thesis: retrofit needs baseline-and-tighten, not fix-everything-first.
+
+### Track N — invocations seam (BL-0012 library half, Wave 4)
+
+- Added `ToolInvocation` type and `parseToolInvocations(file, line)` beside the existing
+  exports; existing `parseTranscriptLine`/`discoverTranscriptFiles`/`pollTranscripts`/
+  `computeStatuses`/`summarizeUsage` untouched, their tests pass unmodified.
+- Verified the `Skill` tool_use input field against live transcripts under
+  `C:\Users\cdigg\.claude\projects\C--Users-cdigg-git-platonic-ts\`:
+  `{"name":"Skill","input":{"skill":"caveman"}}` — field is `skill`, matches the contract.
+- `parseToolInvocations` collects every `tool_use` block per assistant message (not just the
+  first, unlike `firstBlockOfType`/`parseTranscriptLine`'s `toolName`), returns `[]` for
+  non-assistant lines, malformed JSON, blocks missing `name`, or lines with no tool_use blocks.
+- `detail` is derived defensively from common input shapes in priority order: `description`
+  (Bash), `file_path`/`path`/`notebook_path` basename (Read/Edit/Write/NotebookEdit), `command`
+  (Bash fallback), `pattern` (Grep/Glob), `prompt` (Task/Agent) — truncated to 80 chars via the
+  existing `truncate` helper. Sampled real transcripts to confirm Bash carries both `command`
+  and `description`, Read carries `file_path`.
+- Added `ToolInvocation` fields as `T | undefined` (not `field?:`) to satisfy
+  `exactOptionalPropertyTypes` — matches the existing `AgentActivity`/`AgentStatus` convention
+  in `packages/core/src/index.ts` rather than the shorthand `?:` in the seam doc text.
+- Added optional pure aggregator `invocationHistory(invocations, limit?)`: most-recent-first
+  slice, capped when `limit` given.
+- Gates (transcripts package only): `tsc --noEmit` clean (pre-existing unrelated errors in
+  `packages/gitlink` from Track P, outside this fence, left as-is); `vitest run
+  packages/transcripts` 24/24 pass (was 15, +9 new); `eslint packages/transcripts` clean.

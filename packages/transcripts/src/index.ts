@@ -25,6 +25,7 @@ type ContentBlock = {
   readonly type?: unknown
   readonly text?: unknown
   readonly name?: unknown
+  readonly input?: unknown
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -38,6 +39,11 @@ const firstBlockOfType = (
   blocks: readonly ContentBlock[],
   type: string,
 ): ContentBlock | undefined => blocks.find((b) => b.type === type)
+
+const allBlocksOfType = (
+  blocks: readonly ContentBlock[],
+  type: string,
+): readonly ContentBlock[] => blocks.filter((b) => b.type === type)
 
 const parseTimestamp = (raw: unknown): number | undefined => {
   const s = asString(raw)
@@ -161,6 +167,87 @@ export const parseTranscriptLine = (file: string, line: string): AgentActivity |
     snippet: undefined,
   }
   return activity
+}
+
+// ---------------------------------------------------------------------------
+// Tool/skill invocation history (additive; does not change parseTranscriptLine)
+// ---------------------------------------------------------------------------
+
+export type ToolInvocation = {
+  readonly file: string
+  readonly sessionId: string | undefined
+  readonly timestamp: string | undefined
+  readonly tool: string
+  readonly skill: string | undefined
+  readonly detail: string | undefined
+}
+
+const truncateDetail = (text: string): string => truncate(text, 80)
+
+// Short human-readable string describing the call, derived from its input. Kept under ~80
+// chars. Falls back through the fields most tools are likely to carry.
+const detailFromInput = (input: Record<string, unknown>): string | undefined => {
+  const description = asString(input.description)
+  if (description !== undefined) return truncateDetail(description)
+
+  const filePath = asString(input.file_path) ?? asString(input.path) ?? asString(input.notebook_path)
+  if (filePath !== undefined) return truncateDetail(basename(filePath))
+
+  const command = asString(input.command)
+  if (command !== undefined) return truncateDetail(command)
+
+  const pattern = asString(input.pattern)
+  if (pattern !== undefined) return truncateDetail(pattern)
+
+  const prompt = asString(input.prompt)
+  if (prompt !== undefined) return truncateDetail(prompt)
+
+  return undefined
+}
+
+// Pure. One transcript line -> one ToolInvocation per tool_use block in an assistant
+// message (all blocks, not just the first). Non-assistant lines, malformed JSON, and lines
+// with no tool_use blocks all yield [].
+export const parseToolInvocations = (file: string, line: string): readonly ToolInvocation[] => {
+  const trimmed = line.trim()
+  if (trimmed.length === 0) return []
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return []
+  }
+  if (!isRecord(parsed)) return []
+  if (asString(parsed.type) !== 'assistant') return []
+
+  const sessionId = asString(parsed.sessionId)
+  const timestamp = asString(parsed.timestamp)
+  const message = isRecord(parsed.message) ? parsed.message : undefined
+  const content = message && Array.isArray(message.content) ? (message.content as ContentBlock[]) : []
+  const toolUseBlocks = allBlocksOfType(content, 'tool_use')
+
+  return toolUseBlocks
+    .map((block): ToolInvocation | undefined => {
+      const tool = asString(block.name)
+      if (tool === undefined) return undefined
+      const input = isRecord(block.input) ? block.input : {}
+      const skill = tool === 'Skill' ? asString(input.skill) : undefined
+      const detail = detailFromInput(input)
+      return { file, sessionId, timestamp, tool, skill, detail }
+    })
+    .filter((inv): inv is ToolInvocation => inv !== undefined)
+}
+
+// Pure. Most-recent-first slice of the given invocations, optionally capped to `limit`
+// entries. Order among entries with equal/undefined timestamps is stable (input order
+// reversed), since transcript lines already arrive in chronological order.
+export const invocationHistory = (
+  invocations: readonly ToolInvocation[],
+  limit?: number,
+): readonly ToolInvocation[] => {
+  const reversed = [...invocations].reverse()
+  return limit === undefined ? reversed : reversed.slice(0, limit)
 }
 
 // ---------------------------------------------------------------------------

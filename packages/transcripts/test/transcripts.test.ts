@@ -8,6 +8,8 @@ import {
   createTailState,
   discoverSessionTaskDirs,
   discoverTranscriptFiles,
+  invocationHistory,
+  parseToolInvocations,
   parseTranscriptLine,
   pollTranscripts,
   summarizeUsage,
@@ -120,6 +122,74 @@ describe('parseTranscriptLine', () => {
     })
     const activity = parseTranscriptLine('f', line)
     expect(activity?.snippet?.length).toBe(120)
+  })
+})
+
+describe('parseToolInvocations', () => {
+  it('returns one entry per tool_use block in a multi-block assistant message', () => {
+    const line = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-08-22T10:00:00.000Z',
+      sessionId: 'sess-1',
+      message: {
+        model: 'm',
+        content: [
+          { type: 'text', text: 'doing two things' },
+          { type: 'tool_use', name: 'Read', input: { file_path: 'C:\\repo\\foo.ts' } },
+          { type: 'tool_use', name: 'Bash', input: { command: 'ls', description: 'List files' } },
+        ],
+      },
+    })
+    const invocations = parseToolInvocations('f.jsonl', line)
+    expect(invocations).toHaveLength(2)
+    expect(invocations[0]).toMatchObject({ tool: 'Read', detail: 'foo.ts', sessionId: 'sess-1' })
+    expect(invocations[1]).toMatchObject({ tool: 'Bash', detail: 'List files' })
+  })
+
+  it('sets skill from the input skill field for a Skill tool_use', () => {
+    const line = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-08-22T10:00:00.000Z',
+      sessionId: 'sess-1',
+      message: {
+        model: 'm',
+        content: [{ type: 'tool_use', name: 'Skill', input: { skill: 'caveman' } }],
+      },
+    })
+    const invocations = parseToolInvocations('f.jsonl', line)
+    expect(invocations).toHaveLength(1)
+    expect(invocations[0]?.tool).toBe('Skill')
+    expect(invocations[0]?.skill).toBe('caveman')
+  })
+
+  it('returns [] for non-assistant lines, lines with no tool_use blocks, and malformed input', () => {
+    expect(parseToolInvocations('f.jsonl', '')).toEqual([])
+    expect(parseToolInvocations('f.jsonl', 'not json {{{')).toEqual([])
+    expect(parseToolInvocations('f.jsonl', JSON.stringify({ type: 'user', message: { content: 'hi' } }))).toEqual([])
+    const noToolUse = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-08-22T10:00:00.000Z',
+      message: { model: 'm', content: [{ type: 'text', text: 'hi' }] },
+    })
+    expect(parseToolInvocations('f.jsonl', noToolUse)).toEqual([])
+    const missingName = JSON.stringify({
+      type: 'assistant',
+      timestamp: '2026-08-22T10:00:00.000Z',
+      message: { model: 'm', content: [{ type: 'tool_use', input: {} }] },
+    })
+    expect(parseToolInvocations('f.jsonl', missingName)).toEqual([])
+  })
+})
+
+describe('invocationHistory', () => {
+  it('returns entries most-recent-first, optionally capped to limit', () => {
+    const invocations = [
+      { file: 'f', sessionId: undefined, timestamp: undefined, tool: 'Read', skill: undefined, detail: undefined },
+      { file: 'f', sessionId: undefined, timestamp: undefined, tool: 'Bash', skill: undefined, detail: undefined },
+      { file: 'f', sessionId: undefined, timestamp: undefined, tool: 'Skill', skill: 'caveman', detail: undefined },
+    ]
+    expect(invocationHistory(invocations).map((i) => i.tool)).toEqual(['Skill', 'Bash', 'Read'])
+    expect(invocationHistory(invocations, 2).map((i) => i.tool)).toEqual(['Skill', 'Bash'])
   })
 })
 
