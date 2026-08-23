@@ -712,3 +712,25 @@ listed below. Findings by track.
   before the next call does.
 - **Measured through the MCP server**: first call 2.4s, steady state 4ms, first call after an
   external edit 65-91ms (it was a full rebuild before).
+
+### Size distributions (BL-0027)
+
+- **`ts.isExpression` classifies by syntax kind, not by position.** Every declared name,
+  property name, and identifier inside a type annotation answers true, so a population of
+  "all expressions" has a median of one node in any codebase. Restricting to expressions
+  whose parent is not an expression does not help — those names are precisely the nodes with
+  non-expression parents. Requiring more than one node removes them, and avoids depending on
+  `ts.isExpressionNode`, which exists at runtime but is not in the compiler's public typings.
+- **A function body block is not a statement**, by the compiler's own definition, so counting
+  every `ts.isStatement` node does not double count a body against the statements inside it.
+  This is what makes `metrics.ts`'s statement count meaningful, and it is now asserted by a
+  test rather than assumed.
+- **Sizes must be accumulated bottom-up.** Calling `subtreeNodes(node).length` at every node
+  re-walks each subtree once per ancestor. `sizedNodes` in `walk.ts` returns every node paired
+  with its own subtree size from a single pass; the whole repository (117 files, 21877
+  expressions) reports in a couple of seconds.
+- **Zone partitioning changes the reading, as BL-0017 predicted.** Core functions have a
+  median length of 7 lines and Root functions 10; test functions run half the length of Core
+  but their statements are the densest in the repository. The pooled median describes none of
+  the three.
+
