@@ -35,6 +35,8 @@ Ratchet counts escape hatches (`any`, `as`, `!`, `@ts-` and eslint-disable comme
 
 Commit to `main` with pathspec (`git commit -- <paths>`); push only after a verified
 milestone (`git pull --rebase` first — parallel agents collide). No branches, no worktrees.
+A `PreToolUse` hook (`.claude/hooks/guard-git-staging.mjs`, wired in `.claude/settings.json`)
+blocks `git add -A`, bare `git add`, `git commit -a`, and pathspec-less `git commit`.
 Pure functional style, zero runtime deps, relative imports across packages.
 Full rules in [docs/style-guide.md](docs/style-guide.md); breaking one requires PS-056.
 
