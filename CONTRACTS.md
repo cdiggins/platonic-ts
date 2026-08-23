@@ -1,5 +1,84 @@
 # Contracts — fences and seams
 
+## Wave 5 fences (current) — refactoring tools for the MCP server
+
+Builds the tools ranked in `docs/refactoring-tool-candidates-2026-08-23.md`, in four layers.
+Every track writes **pure functions with their own tests**; nothing is wired into the tool
+catalogue until the supervisor integrates. That ordering is deliberate — `tools.ts` and
+`server.ts` are the only files every track would otherwise contend for.
+
+Supervisor-owned (READ only for every track; report needed changes, never edit):
+`packages/mcp/src/compiler.ts`, `packages/mcp/src/workspace.ts`, `packages/mcp/src/edit.ts`,
+`packages/mcp/src/query.ts`, `packages/mcp/src/declaration.ts`, `packages/mcp/src/io.ts`,
+`packages/mcp/src/tools.ts`, `packages/mcp/src/server.ts`, `packages/mcp/src/index.ts`,
+`packages/mcp/test/fixture.ts`, `packages/core/**`, `packages/codemap/**`, root `package.json`,
+`ratchet.json`, this doc, `AGENTS.md`, `docs/**`, `NOTES.md` (append-only for all tracks).
+
+| Track | Layer | Writes only | Tools |
+|---|---|---|---|
+| A types | 1 | `packages/mcp/src/types.ts`, `packages/mcp/test/types.test.ts` | `type_of`, `members_of` |
+| B diagnostics | 1 | `packages/mcp/src/diagnostics.ts`, `packages/mcp/test/diagnostics.test.ts` | `diagnostics`, `apply_code_fix`, `organize_imports` |
+| C batch | 2 | `packages/mcp/src/preview.ts`, `packages/mcp/src/batch.ts`, `packages/mcp/test/preview.test.ts`, `packages/mcp/test/batch.test.ts` | `preview`, `batch_edit` |
+| D checkpoint | 2 | `packages/mcp/src/checkpoint.ts`, `packages/mcp/test/checkpoint.test.ts` | `checkpoint`, `revert` |
+| E move | 3 | `packages/mcp/src/move.ts`, `packages/mcp/test/move.test.ts` | `move_symbol`, `rename_file` |
+| F signature | 3 | `packages/mcp/src/signature.ts`, `packages/mcp/src/refactor.ts`, `packages/mcp/test/signature.test.ts`, `packages/mcp/test/refactor.test.ts` | `change_signature`, `apply_refactor` |
+| G graph | 4 | `packages/mcp/src/graph.ts`, `packages/mcp/test/graph.test.ts` | `callers`, `module_graph`, `unused_exports`, `implementations`, `tests_for_symbol`, `blast_radius` |
+| H inspect | 4 | `packages/mcp/src/inspect.ts`, `packages/mcp/test/inspect.test.ts` | `symbol_metrics`, `escape_hatch_index`, `delete_symbol`, `symbol_diff` |
+| S5 supervisor | — | `tools.ts`, `server.ts`, `index.ts`, docs, everything else | wiring, full gate, push |
+
+### Wave 5 seam — the shape every tool takes
+
+A read tool is a pure function returning `ToolOutput` (`{ ok, text }`, from `query.ts`).
+A write tool is a pure function returning `EditPlan` (`{ ok: true, edits, summary }` or
+`{ ok: false, text }`, from `edit.ts`). Neither touches the filesystem: the supervisor's
+`applyPlan` in `server.ts` writes plans, and `writeEdits` re-reads every file and compares it
+against the index before writing, so a stale plan fails rather than corrupts.
+
+The first parameter is `Workspace` for tools that need only shapes and resolved references,
+and `Compiler` for tools that need inferred types, diagnostics, or the language service.
+Prefer `Workspace`: binding a program costs seconds, and `server.ts` loads it only for the
+branches that ask.
+
+### Wave 5 seam — `packages/mcp/src/compiler.ts` (supervisor, landed)
+
+```ts
+type Compiler = {
+  readonly workspace: Workspace
+  readonly language: ts.LanguageService
+  readonly program: ts.Program
+  readonly checker: ts.TypeChecker
+  readonly root: string
+  readonly pathOf: (file: string) => string          // 'a.ts' -> 'C:/repo/a.ts'
+  readonly fileOf: (path: string) => string          // 'C:/repo/a.ts' -> 'a.ts'
+  readonly boundSourceFile: (file: string) => ts.SourceFile | undefined
+}
+createCompiler(root, texts: ReadonlyMap<string, string>, workspace): Compiler
+toFileEdits(compiler, changes: readonly ts.FileTextChanges[]): readonly FileEdit[]
+newFilesIn(changes: readonly ts.FileTextChanges[]): readonly string[]
+describeDiagnostic(compiler, diagnostic: ts.Diagnostic): string
+formatSettings: ts.FormatCodeSettings     // pass to every language service edit call
+userPreferences: ts.UserPreferences       // ditto
+```
+
+`toFileEdits` is the bridge from anything the language service computes to the existing plan
+shape. It drops files the compiler wants to create; `newFilesIn` names them so a tool can
+decline rather than silently skip.
+
+Tests get a bound fixture from `packages/mcp/test/fixture.ts`:
+`compilerOf(sources: Record<string, string>): Compiler`, beside the existing
+`workspaceOf(sources): Workspace`. Both take a record of repo-relative name to text and are
+fully in-memory; the default library is read from disk, so inferred types are real.
+Worked example in `packages/mcp/test/compiler.test.ts`.
+
+### Wave 5 rules that apply to every track
+
+- **Refuse rather than guess.** A transformation that cannot resolve a case returns
+  `{ ok: false, text }` naming the case. A partial edit that happens to compile is the one
+  outcome worse than no edit, because the caller cannot see what was skipped.
+- **Report in symbols, not offsets.** Output names declarations and `file:line` locations.
+- **No new exported tool names.** Tracks export functions; the supervisor names the tools.
+
+
 ## Wave 4 fences (concurrent with Wave 3) — tooling wave
 
 Runs alongside Wave 3 on the same tree, disjoint fences. Wave 4 never writes
