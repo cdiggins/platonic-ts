@@ -31,6 +31,11 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
+      // A leading underscore marks a parameter kept for signature conformance.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
       'functional/no-classes': 'error',
       'functional/no-throw-statements': 'error',
       'functional/immutable-data': 'error',

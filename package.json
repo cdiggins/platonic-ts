@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "check": "tsx packages/check/src/main.ts",
     "dashboard": "tsx packages/dashboard/src/main.ts",
-    "backlog:regen": "tsx packages/backlog/src/main.ts regen"
+    "backlog:regen": "tsx packages/backlog/src/main.ts regen",
+    "codeview": "tsx packages/codeview/src/main.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

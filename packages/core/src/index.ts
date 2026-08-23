@@ -143,3 +143,126 @@ export const outputTokensPerMinute = (
 
 export const truncate = (text: string, max: number): string =>
   text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1))}…`
+
+// ---------------------------------------------------------------------------
+// Code overview browser (BL-0016). Produced by packages/codemap, served by
+// packages/codeview. Paths are repo-relative and use forward slashes on every
+// platform, so they are stable identifiers in URLs and in the index.
+// ---------------------------------------------------------------------------
+
+export type SourceSpan = {
+  readonly start: number
+  readonly length: number
+}
+
+export type SymbolKind =
+  | 'function'
+  | 'variable'
+  | 'type'
+  | 'interface'
+  | 'class'
+  | 'enum'
+  | 'method'
+  | 'property'
+  | 'module'
+  | 'other'
+
+// `${file}#${declaration name start offset}` — stable while the file is unchanged.
+export type SymbolId = string
+
+export type SymbolInfo = {
+  readonly id: SymbolId
+  readonly name: string
+  readonly kind: SymbolKind
+  readonly file: string
+  readonly span: SourceSpan
+  readonly line: number
+  readonly exported: boolean
+  readonly containerName: string | undefined
+  readonly signature: string | undefined
+}
+
+export type SymbolReference = {
+  readonly symbolId: SymbolId
+  readonly file: string
+  readonly span: SourceSpan
+  readonly line: number
+  readonly isDefinition: boolean
+}
+
+// One metric shape at every granularity (function, file, folder) so the same
+// renderer and the same score apply to all three. Counts are sums; a folder's
+// metrics are the sum of its files'.
+export type CodeMetrics = {
+  readonly lines: number
+  readonly statements: number
+  readonly maxNestingDepth: number
+  readonly parameters: number
+  readonly mutableBindings: number
+  readonly classes: number
+  readonly throwStatements: number
+  readonly explicitAny: number
+  readonly asCasts: number
+  readonly nonNullAssertions: number
+  readonly tsDirectives: number
+  readonly eslintDisables: number
+  readonly exportedSymbols: number
+  readonly imports: number
+  // 0..100. 100 = no measured deviation from the platonic ideals. Computed by
+  // scoreMetrics in packages/codemap; never stored independently.
+  readonly platonicScore: number
+}
+
+export type FunctionMetrics = {
+  readonly symbolId: SymbolId
+  readonly name: string
+  readonly line: number
+  readonly metrics: CodeMetrics
+}
+
+export type FileKind = 'typescript' | 'markdown' | 'other'
+
+export type FileEntry = {
+  readonly file: string
+  readonly kind: FileKind
+  readonly sizeBytes: number
+  readonly metrics: CodeMetrics | undefined
+  readonly functions: readonly FunctionMetrics[]
+}
+
+export type FolderEntry = {
+  readonly path: string
+  readonly fileCount: number
+  readonly metrics: CodeMetrics
+}
+
+export type CodeIndex = {
+  readonly generatedAt: number
+  readonly root: string
+  readonly files: readonly FileEntry[]
+  readonly folders: readonly FolderEntry[]
+  readonly symbols: readonly SymbolInfo[]
+  readonly references: readonly SymbolReference[]
+}
+
+// What GET /api/file returns: everything needed to render one file's page.
+export type FileView = {
+  readonly file: string
+  readonly kind: FileKind
+  readonly html: string
+  readonly metrics: CodeMetrics | undefined
+  readonly functions: readonly FunctionMetrics[]
+  readonly symbols: readonly SymbolInfo[]
+}
+
+// Feedback typed into the code browser and routed into `backlog/` as a new item.
+export type FeedbackInput = {
+  readonly text: string
+  readonly file: string | undefined
+  readonly symbol: string | undefined
+}
+
+export type FeedbackResult = {
+  readonly id: string
+  readonly file: string
+}

@@ -10,7 +10,7 @@ area: repo
 sprint:
 created: 2026-08-22
 closed:
-links: [BL-0001, BL-0003, BL-0010, docs/tooling-catalog.md, docs/deliverable-ideas-2026-08-22.md]
+links: [BL-0001, BL-0003, BL-0010, BL-0016, docs/tooling-catalog.md, docs/deliverable-ideas-2026-08-22.md]
 ---
 
 ## Idea
@@ -62,6 +62,7 @@ not just "did the repo's total escape-hatch count go up."
 ## Related
 - [BL-0001](BL-0001-platonic-check.md) — the existing binary ratchet is the direct predecessor; this idea graduates it from whole-repo pass/fail counts to a graded, attributable score.
 - [BL-0003](BL-0003-eslint-functional.md) — the functional-subset lint rules are exactly the purity signals this idea would score against.
+- [BL-0016](BL-0016-code-overview-browser.md) — the browser that renders these scores; it consumes this item's metrics rather than defining a second formula.
 - [BL-0010](BL-0010-init-retrofitter.md) — if this ships as a scored profile, the retrofitter is how another repo gets scored too; sequence this after or alongside BL-0010, not before it's clear what's being retrofitted.
 - [docs/tooling-catalog.md:57](../docs/tooling-catalog.md) — eslint-plugin-sonarjs already flagged as the buy-side candidate for complexity limits.
 - [docs/deliverable-ideas-2026-08-22.md](../docs/deliverable-ideas-2026-08-22.md) — B4 "Verdict compactor" (dedupe by owning file) and B2 "Gate daemon" (compact green/red verdict) are the closest named candidates; this idea is closer to a graded B4 than a new build item.
@@ -79,8 +80,10 @@ Short term:
   from a new `platonic score` subcommand, before inventing a blended number.
 
 Long term:
-- Feed scores into the dashboard as a per-file/per-package heatmap so degradation is visible
-  without running a CLI command.
+- Surface scores in the code overview browser (BL-0016) as a per-file/per-package heatmap so
+  degradation is visible without running a CLI command. Not the observability dashboard: that
+  app is agent activity and logged work only (docs/tools-and-process.md). BL-0016 consumes the
+  scores this item defines; it does not define its own.
 - Use scores to drive BL-0010's graduated-strictness retrofit profile — a target repo's
   initial ratchet baseline could be its current per-file score distribution, not just a flat
   repo-wide count.

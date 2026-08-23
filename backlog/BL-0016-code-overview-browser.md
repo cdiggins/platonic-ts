@@ -1,16 +1,16 @@
 ---
 id: BL-0016
 title: Build a code overview browser separate from the observability dashboard
-type: idea
-status: idea
-priority: "?"
-effort: "?"
-risk: "?"
+type: feature
+status: in-progress
+priority: p2
+effort: L
+risk: med
 area: repo
 sprint:
 created: 2026-08-22
 closed:
-links: [BL-0006, BL-0011, docs/tooling-catalog.md, docs/claude-code-integration-2026-08-22.md, docs/tools-and-process.md]
+links: [BL-0006, BL-0011, decisions/2026-08-22-code-index-backend.md, docs/tooling-catalog.md, docs/claude-code-integration-2026-08-22.md, docs/tools-and-process.md]
 ---
 
 ## Idea
@@ -71,11 +71,19 @@ inside a slower build-and-reload loop, unshareable, and coupled to one editor.
 - **Index freshness.** Rebuild on file watch, rebuild on request, or explicit reload endpoint.
   Watch is nicest and is the most moving parts.
 
+## Decisions taken (2026-08-22, wave 3)
+- Backend: TypeScript compiler API, not `tsserver` or `scip-typescript` —
+  [ADR](../decisions/2026-08-22-code-index-backend.md).
+- Index in its own package `packages/codemap`, behind `indexRepo(repoDir, now): Promise<CodeIndex>`.
+- Metrics computed in `codemap`, reusing `countEscapeHatches` from `packages/check`.
+- Feedback writes a `backlog/` item; no `claude -p`, no MCP, for now.
+- Freshness: rebuild on demand with a 5s TTL; no file watching.
+- Browser serves on port 4848; the observability dashboard keeps 4747.
+
 ## Related
-- [BL-0011](BL-0011-conformance-score.md) — supplies the metrics this browser renders. **Direct
-  conflict to resolve:** BL-0011's long-term approaches say "feed scores into the dashboard as a
-  per-file/per-package heatmap", which the documented dashboard boundary now forbids. That surface
-  belongs here. BL-0011 needs editing, or this item supersedes that bullet.
+- [BL-0011](BL-0011-conformance-score.md) — supplies the metrics this browser renders. **Conflict resolved 2026-08-22:** BL-0011's long-term approaches say "feed scores into the dashboard as a
+  per-file/per-package heatmap", which the documented dashboard boundary forbids. That bullet now
+  points at this item instead.
 - [BL-0006](BL-0006-dashboard.md) — the observability dashboard. Not a parent; the deliberate
   contrast. Its `packages/dashboard/src/server.ts` (`node:http` + SSE, injected `SnapshotProvider`)
   is the pattern to copy, not the app to extend.
