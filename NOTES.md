@@ -474,3 +474,17 @@ Smoke: dry run against a temp repo with a conflicting `scripts.lint` and `strict
 printed a 4-action plan + 4 manual steps and wrote nothing; `--yes` applied it, leaving both
 conflicting values intact; a re-run after adding an `as` cast reported
 `regressed on asCasts`; the generated `eslint.config.js` parses under `node --check`.
+
+### Track T — hook tail seam (BL-0004 read half, Wave 5)
+
+- New module `packages/hooks/src/tail.ts`: incremental reader for `.claude/events/events.jsonl`.
+- Exports: `HookTailState` type (opaque), `createHookTailState(): HookTailState`, `pollHookEvents(file: string, state: HookTailState): Promise<{ readonly state: HookTailState; readonly events: readonly HookEvent[] }>`.
+- Pattern matches `packages/transcripts` TailState exactly: per-file state tracks byte offset + partial-line remainder; poll reads only appended bytes since last offset, splits lines via existing `splitJsonlChunk` from core, parses via existing `parseHookEventLine`, skips malformed lines (undefined -> filtered out).
+- Missing file: no throw, returns empty events, drops file from state (if present).
+- File truncation (size < offset): resets offset to 0, clears remainder, re-reads from start.
+- Partial lines held in remainder until next poll completes them (\\n newline finishes a line).
+- Immutable derivations: Map rebuild via spread + filter (missing) or spread + new entry (appended), no mutation.
+- Re-export from `src/index.ts` alongside `HookEvent`, `parseHookEventLine`, `formatHookEvent`.
+- Tests: `packages/hooks/test/tail.test.ts` (8 tests) — missing file ok, read from new file, append-then-poll incremental, partial line held then completed, malformed-line skip, truncation reset, remainder preservation across multi-chunk partial, empty-line tolerance. Uses temp dir (node:os tmpdir).
+- No external deps (node:fs/promises, node:path, core's splitJsonlChunk only).
+- Gate results (this fence): `npx tsc --noEmit` clean for packages/hooks; `npx vitest run packages/hooks` 25/25 passed (17 existing + 8 new); `npx eslint packages/hooks` clean (immutable-data and no-unsafe-assignment enforced).
