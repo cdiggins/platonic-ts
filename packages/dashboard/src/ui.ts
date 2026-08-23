@@ -387,6 +387,7 @@ ${PAGER_CLIENT_SCRIPT}
 })();
 `
 
+// Renders the complete HTML page for the dashboard.
 export const renderPage = (): string => `<!doctype html>
 <html lang="en">
 <head>

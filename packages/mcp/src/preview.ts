@@ -133,6 +133,7 @@ const mergeRanges = (
 const rangeText = (start: number, count: number): string =>
   count === 0 ? `${start - 1},0` : count === 1 ? `${start}` : `${start},${count}`
 
+// Format a diff between two strings as unified diff hunks with context lines.
 export const unifiedDiff = (
   file: string,
   before: string,

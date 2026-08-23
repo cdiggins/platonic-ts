@@ -12,6 +12,7 @@
 import ts from 'typescript'
 import type { SymbolInfo, SymbolReference } from '../../core/src/index.ts'
 
+// CSS class name for a syntax-highlighted token.
 export type TokenClass =
   | 'keyword'
   | 'string'
@@ -22,12 +23,14 @@ export type TokenClass =
   | 'punctuation'
   | 'plain'
 
+// A classified token in syntax-highlighted source code.
 export type HighlightToken = {
   readonly text: string
   readonly class: TokenClass
   readonly start: number
 }
 
+// Escapes HTML special characters for safe display.
 export const escapeHtml = (text: string): string =>
   text.replace(/[&<>"']/g, (character) =>
     character === '&'
@@ -138,6 +141,7 @@ const previousSignificant = (
       : candidate.kind
 }
 
+// Tokenizes and classifies TypeScript source code for syntax highlighting.
 export const highlightTypeScript = (source: string): readonly HighlightToken[] => {
   const raw = rawTokens(source)
   const tokens = raw.flatMap((token, index): readonly HighlightToken[] => {
@@ -267,6 +271,7 @@ const renderLine = (
   )
 }
 
+// Renders source code as HTML with syntax highlighting and clickable reference links.
 export const renderSourceHtml = (
   source: string,
   _symbols: readonly SymbolInfo[],
@@ -485,5 +490,6 @@ const withoutFrontmatter = (lines: readonly string[]): readonly string[] => {
   return closing === -1 ? lines : lines.slice(closing + 1)
 }
 
+// Renders markdown to HTML, stripping optional YAML frontmatter.
 export const renderMarkdown = (markdown: string): string =>
   renderBlocks(withoutFrontmatter(markdown.split('\n').map((line) => line.replace(/\r$/, ''))))

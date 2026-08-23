@@ -22,8 +22,10 @@ import {
   usedNumbers,
 } from './ids.ts'
 
+// Directory name where backlog ID markers are stored.
 export const markerDirName = '.ids'
 
+// A backlog ID that was successfully allocated to a new item.
 export type AllocatedItem = {
   readonly id: string
   readonly number: number
@@ -83,6 +85,7 @@ const claimFrom = async (
   return undefined
 }
 
+// Allocates unique backlog IDs for new items by creating marker files.
 export const allocateBacklogItems = async (
   dir: string,
   slugs: readonly string[],
@@ -125,6 +128,7 @@ export const backfillMarkers = async (dir: string): Promise<readonly number[]> =
   return created.filter((value): value is number => value !== undefined)
 }
 
+// Reads all markdown files in a directory and extracts their frontmatter IDs.
 export const readBacklogFileInfos = async (dir: string): Promise<readonly BacklogFileInfo[]> => {
   const files = (await listNames(dir)).filter((name) => name.endsWith('.md'))
   return Promise.all(
@@ -136,5 +140,6 @@ export const readBacklogFileInfos = async (dir: string): Promise<readonly Backlo
   )
 }
 
+// Lists all marker file names in the marker directory.
 export const readMarkerNames = async (dir: string): Promise<readonly string[]> =>
   listNames(join(dir, markerDirName))

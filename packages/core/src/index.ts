@@ -5,6 +5,7 @@
 // Activity: one normalized record derived from a Claude Code transcript line.
 // ---------------------------------------------------------------------------
 
+// Classification of the agent activity's origin.
 export type ActivityKind = 'assistant' | 'user' | 'tool_result' | 'other'
 
 export type AgentActivity = {
@@ -29,6 +30,7 @@ export type AgentActivity = {
 // Derived views served by the dashboard.
 // ---------------------------------------------------------------------------
 
+// Current state of an agent session.
 export type AgentStatus = {
   readonly file: string
   readonly sessionId: string | undefined
@@ -43,6 +45,7 @@ export type AgentStatus = {
   readonly active: boolean
 }
 
+// Token usage for a specific model.
 export type ModelUsage = {
   readonly model: string
   readonly inputTokens: number
@@ -52,6 +55,7 @@ export type ModelUsage = {
   readonly messages: number
 }
 
+// Aggregate of token usage across all activities in a time window.
 export type UsageSummary = {
   readonly totalInputTokens: number
   readonly totalOutputTokens: number
@@ -67,14 +71,19 @@ export type UsageSummary = {
 // done/dropped = closed (dropped: killed without shipping).
 export type BacklogStatus = 'idea' | 'ready' | 'in-progress' | 'done' | 'dropped'
 
+// Classification of a backlog item's kind of work.
 export type BacklogType = 'feature' | 'debt' | 'bug' | 'idea' | 'problem' | 'retire'
 
+// Relative importance of a backlog item.
 export type BacklogPriority = 'p1' | 'p2' | 'p3' | '?'
 
+// Estimated work size for a backlog item.
 export type BacklogEffort = 'S' | 'M' | 'L' | '?'
 
+// Assessed implementation risk for a backlog item.
 export type BacklogRisk = 'low' | 'med' | 'high' | '?'
 
+// A single item from the project backlog, parsed from frontmatter.
 export type BacklogItem = {
   readonly id: string
   readonly title: string
@@ -93,6 +102,7 @@ export type BacklogItem = {
   readonly body: string
 }
 
+// Metadata for a documentation file in the repository.
 export type DocInfo = {
   readonly file: string
   readonly title: string
@@ -100,6 +110,7 @@ export type DocInfo = {
   readonly sizeBytes: number
 }
 
+// Complete dashboard state snapshot at a point in time.
 export type DashboardSnapshot = {
   readonly generatedAt: number
   readonly agents: readonly AgentStatus[]
@@ -141,6 +152,7 @@ export const outputTokensPerMinute = (
   return windowMs <= 0 ? 0 : (total * 60_000) / windowMs
 }
 
+// Shortens text to max length, ending with ellipsis if truncated.
 export const truncate = (text: string, max: number): string =>
   text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1))}…`
 
@@ -150,11 +162,13 @@ export const truncate = (text: string, max: number): string =>
 // platform, so they are stable identifiers in URLs and in the index.
 // ---------------------------------------------------------------------------
 
+// A byte range within a file.
 export type SourceSpan = {
   readonly start: number
   readonly length: number
 }
 
+// Classification of a named declaration in source code.
 export type SymbolKind =
   | 'function'
   | 'variable'
@@ -184,6 +198,7 @@ export type SymbolInfo = {
   readonly docLine: string | undefined
 }
 
+// A location where a symbol is used in source code.
 export type SymbolReference = {
   readonly symbolId: SymbolId
   readonly file: string
@@ -217,6 +232,7 @@ export type CodeMetrics = {
   readonly platonicScore: number
 }
 
+// Code quality metrics for a function.
 export type FunctionMetrics = {
   readonly symbolId: SymbolId
   readonly name: string
@@ -224,8 +240,10 @@ export type FunctionMetrics = {
   readonly metrics: CodeMetrics
 }
 
+// Classification of a file by content type.
 export type FileKind = 'typescript' | 'markdown' | 'other'
 
+// Code metrics and functions for one file.
 export type FileEntry = {
   readonly file: string
   readonly kind: FileKind
@@ -234,12 +252,14 @@ export type FileEntry = {
   readonly functions: readonly FunctionMetrics[]
 }
 
+// Aggregated metrics for all files in a folder.
 export type FolderEntry = {
   readonly path: string
   readonly fileCount: number
   readonly metrics: CodeMetrics
 }
 
+// Index of code structure and metrics for a repository.
 export type CodeIndex = {
   readonly generatedAt: number
   readonly root: string

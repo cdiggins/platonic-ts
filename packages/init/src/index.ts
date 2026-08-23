@@ -10,8 +10,10 @@ import { eslintConfigContent } from './templates/eslint.ts'
 import { freshPackageJson, platonicDevDependencies, platonicScripts } from './templates/packageJson.ts'
 import { freshTsconfig, strictCompilerOptions } from './templates/tsconfig.ts'
 
+// Retrofit strictness levels: observe (scan only), standard (minimal ratchet), full (tight checks).
 export type StrictnessProfile = 'observe' | 'standard' | 'full'
 
+// JSON-serializable value: primitives, arrays, or objects.
 export type JsonValue =
   | string
   | number
@@ -20,6 +22,7 @@ export type JsonValue =
   | readonly JsonValue[]
   | { readonly [key: string]: JsonValue }
 
+// A JSON object with string keys and JsonValue values.
 export type JsonObject = { readonly [key: string]: JsonValue }
 
 /** What the target repository looks like right now. Produced by `snapshotTarget`. */
@@ -35,6 +38,7 @@ export type TargetSnapshot = {
   readonly scannedFileCount: number
 }
 
+// A merge conflict in a JSON file: a key with both existing and proposed values.
 export type JsonConflict = {
   /** Dotted key path, e.g. `compilerOptions.strict`. */
   readonly key: string
@@ -42,6 +46,7 @@ export type JsonConflict = {
   readonly proposed: JsonValue
 }
 
+// One action the init plan either performs (write, merge) or deliberately skips.
 export type InitAction =
   | {
       readonly kind: 'writeFile'
@@ -65,6 +70,7 @@ export type InitPlan = {
   readonly manualSteps: readonly string[]
 }
 
+// Result of applying one InitAction: what changed, and why.
 export type ApplyOutcome = {
   readonly path: string
   readonly kind: InitAction['kind']
@@ -72,11 +78,13 @@ export type ApplyOutcome = {
   readonly detail: string
 }
 
+// Summary of what was applied to the target: dry-run flag and per-file outcomes.
 export type ApplyReport = {
   readonly dryRun: boolean
   readonly outcomes: readonly ApplyOutcome[]
 }
 
+// Type guard: true if value is a plain object with string keys (a JsonObject).
 export const isJsonObject = (value: unknown): value is JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -131,6 +139,7 @@ const splitMerge = (
     }
   }, emptySplit)
 
+// Converts a JsonObject to a file-ready string: 2-space JSON with trailing newline.
 export const jsonFileContent = (value: JsonObject): string => `${JSON.stringify(value, null, 2)}\n`
 
 const eslintFileNames: readonly string[] = [
@@ -275,6 +284,7 @@ const sidecarSteps = (actions: readonly InitAction[]): readonly string[] =>
       : [],
   )
 
+// Generates a configuration plan for the target repository at the given strictness profile.
 export const planInit = (target: TargetSnapshot, profile: StrictnessProfile): InitPlan => {
   const actions: readonly InitAction[] = [
     planPackageJson(target, profile),

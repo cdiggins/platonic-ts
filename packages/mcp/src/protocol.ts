@@ -5,6 +5,7 @@
 // Written by hand rather than taken from the reference SDK because the wire
 // format is a dozen lines of JSON and the repo carries no runtime dependencies.
 
+// A JSON-RPC request identifier.
 export type RequestId = string | number
 
 // `id` is absent on notifications, which must never be answered.
@@ -14,11 +15,13 @@ export type RpcRequest = {
   readonly params: Readonly<Record<string, unknown>>
 }
 
+// A JSON-RPC error response.
 export type RpcError = {
   readonly code: number
   readonly message: string
 }
 
+// A JSON-RPC response message.
 export type RpcResponse = {
   readonly jsonrpc: '2.0'
   readonly id: RequestId
@@ -26,14 +29,20 @@ export type RpcResponse = {
   readonly error?: RpcError
 }
 
+// The result of parsing a line as a JSON-RPC message.
 export type ParsedLine =
   | { readonly ok: true; readonly request: RpcRequest }
   | { readonly ok: false; readonly error: RpcError; readonly id: RequestId | undefined }
 
+// JSON-RPC 2.0 error code for unparseable input.
 export const parseErrorCode = -32700
+// JSON-RPC 2.0 error code for a request that doesn't match the specification.
 export const invalidRequestCode = -32600
+// JSON-RPC 2.0 error code for an unknown method name.
 export const methodNotFoundCode = -32601
+// JSON-RPC 2.0 error code for invalid method arguments.
 export const invalidParamsCode = -32602
+// JSON-RPC 2.0 error code for unexpected server failures.
 export const internalErrorCode = -32603
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -65,16 +74,19 @@ export const parseLine = (line: string): ParsedLine => {
   return { ok: true, request: { id, method: value['method'], params: isRecord(params) ? params : {} } }
 }
 
+// Create a success response for a request.
 export const resultOf = (id: RequestId, result: unknown): RpcResponse => ({
   jsonrpc: '2.0',
   id,
   result,
 })
 
+// Create an error response for a request.
 export const errorOf = (id: RequestId, code: number, message: string): RpcResponse => ({
   jsonrpc: '2.0',
   id,
   error: { code, message },
 })
 
+// Serialize a response as JSON with a trailing newline.
 export const encodeResponse = (response: RpcResponse): string => `${JSON.stringify(response)}\n`

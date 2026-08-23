@@ -51,6 +51,7 @@ const bodyFromInput = (input: FeedbackInput): string =>
     '',
   ].join('\n')
 
+// Writes a feedback item to backlogDir with a generated ID and slug-based filename.
 export const appendFeedbackItem = async (
   backlogDir: string,
   input: FeedbackInput,

@@ -10,6 +10,7 @@ import type { EditPlan, FileEdit } from './edit.ts'
 import type { ToolOutput } from './query.ts'
 import type { Workspace } from './workspace.ts'
 
+// A point-in-time recording of file contents with a label and timestamp.
 export type Snapshot = {
   readonly label: string
   readonly takenAt: number
@@ -31,6 +32,7 @@ const listOf = (files: readonly string[]): string => files.join(', ')
 // module reads a clock.
 const timeOf = (takenAt: number): string => new Date(takenAt).toISOString()
 
+// Captures the contents of specified files and returns a snapshot.
 export const takeSnapshot = async (
   reader: FileReader,
   label: string,
@@ -63,6 +65,7 @@ const allFiles = (
   current: ReadonlyMap<string, string>,
 ): readonly string[] => [...new Set([...snapshot.files.keys(), ...current.keys()])].sort()
 
+// Lists files whose contents differ between a snapshot and the current state.
 export const changedSince = (
   snapshot: Snapshot,
   current: ReadonlyMap<string, string>,
@@ -92,6 +95,7 @@ const restoreEdit = (
   currentText: string,
 ): FileEdit => ({ file, start: 0, end: currentText.length, text: snapshotText })
 
+// Creates a plan to revert changed files to their snapshot state, or declines if files were created or deleted.
 export const restorePlan = (
   snapshot: Snapshot,
   current: ReadonlyMap<string, string>,
@@ -139,6 +143,7 @@ const directionOf = (
       ? 'deleted since the snapshot'
       : 'modified since the snapshot'
 
+// Formats a snapshot showing its label, timestamp, and which files have changed.
 export const describeSnapshot = (
   snapshot: Snapshot,
   current: ReadonlyMap<string, string>,

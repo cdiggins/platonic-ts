@@ -4,6 +4,7 @@
 // asks differently.
 import { count, preview, symbolFile, symbolName, text, textList, tool, type ToolSpec } from './schema.ts'
 
+// Tools for modifying individual declarations and organizing imports.
 export const editingTools: readonly ToolSpec[] = [
   tool(
     'replace_symbol',
@@ -47,7 +48,7 @@ export const editingTools: readonly ToolSpec[] = [
   ),
   tool(
     'apply_code_fix',
-    'Apply one of the compiler’s own quick fixes. With no fixName, applies the fix only when exactly one is available and otherwise lists them: the wrong quick fix compiles and is still wrong. Note the compiler can generate code this repository bans — fixMissingFunctionDeclaration writes a throw.',
+    'Apply one of the compiler\'s own quick fixes. With no fixName, applies the fix only when exactly one is available and otherwise lists them: the wrong quick fix compiles and is still wrong. Note the compiler can generate code this repository bans — fixMissingFunctionDeclaration writes a throw.',
     {
       file: text('Repo-relative path.'),
       line: count('1-based line. Default is every diagnostic in the file.'),
@@ -58,10 +59,11 @@ export const editingTools: readonly ToolSpec[] = [
   ),
 ]
 
+// Tools for refactoring and restructuring code at scale.
 export const transformTools: readonly ToolSpec[] = [
   tool(
     'move_symbol',
-    'Move a declaration to another file, rewriting every importer, the source file’s own use of it, and the imports the declaration needs in its new home. Refuses on a hidden dependency, an aliased import, a re-export, a name collision, or a move that would create a cycle. Does not create files. Leaves the source file’s now-unused import for organize_imports.',
+    'Move a declaration to another file, rewriting every importer, the source file\'s own use of it, and the imports the declaration needs in its new home. Refuses on a hidden dependency, an aliased import, a re-export, a name collision, or a move that would create a cycle. Does not create files. Leaves the source file\'s now-unused import for organize_imports.',
     {
       name: symbolName,
       file: symbolFile,
@@ -82,7 +84,7 @@ export const transformTools: readonly ToolSpec[] = [
   ),
   tool(
     'change_signature',
-    'Add, remove, or reorder a function’s parameters and rewrite every call site. You state the mapping rather than the tool inferring it: an argument of the form $0, $1 copies the existing argument at that index, anything else is inserted as source. Adding a parameter is arguments ["$0", "1"]; removing the second is ["$0"]; swapping is ["$1", "$0"]. Refuses, changing nothing, when any site is not a call — the function passed as a value, used in a type, re-exported, spread, or nested inside another call site.',
+    'Add, remove, or reorder a function\'s parameters and rewrite every call site. You state the mapping rather than the tool inferring it: an argument of the form $0, $1 copies the existing argument at that index, anything else is inserted as source. Adding a parameter is arguments ["$0", "1"]; removing the second is ["$0"]; swapping is ["$1", "$0"]. Refuses, changing nothing, when any site is not a call — the function passed as a value, used in a type, re-exported, spread, or nested inside another call site.',
     {
       name: symbolName,
       file: symbolFile,
@@ -94,7 +96,7 @@ export const transformTools: readonly ToolSpec[] = [
   ),
   tool(
     'apply_refactor',
-    'Run one of the compiler’s own refactorings on a declaration, by the refactor and action names refactorings reports. Note Convert named export to default export produces a default export, which this repository’s style guide forbids.',
+    'Run one of the compiler\'s own refactorings on a declaration, by the refactor and action names refactorings reports. Note Convert named export to default export produces a default export, which this repository\'s style guide forbids.',
     {
       name: symbolName,
       file: symbolFile,
@@ -106,6 +108,7 @@ export const transformTools: readonly ToolSpec[] = [
   ),
 ]
 
+// Tools for safe batching and reverting of edits.
 export const safetyTools: readonly ToolSpec[] = [
   tool(
     'checkpoint',

@@ -20,6 +20,7 @@ export type Compiler = {
   readonly boundSourceFile: (file: string) => ts.SourceFile | undefined
 }
 
+// Settings for the TypeScript compiler used by all tools.
 export const compilerOptions: ts.CompilerOptions = {
   noEmit: true,
   target: ts.ScriptTarget.ES2022,
@@ -45,6 +46,7 @@ export const formatSettings: ts.FormatCodeSettings = {
   insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
 }
 
+// Editor preferences for organizing imports and generating code.
 export const userPreferences: ts.UserPreferences = {
   quotePreference: 'single',
   importModuleSpecifierEnding: 'js',
@@ -55,6 +57,7 @@ export const userPreferences: ts.UserPreferences = {
 
 const normalize = (path: string): string => path.replace(/\\/g, '/')
 
+// Initializes a TypeScript compiler wrapping the given source texts and workspace.
 export const createCompiler = (
   root: string,
   texts: ReadonlyMap<string, string>,
@@ -128,9 +131,11 @@ export const toFileEdits = (
       })),
     )
 
+// Extracts the paths of files the compiler wants to create.
 export const newFilesIn = (changes: readonly ts.FileTextChanges[]): readonly string[] =>
   changes.filter((change) => change.isNewFile === true).map((change) => change.fileName)
 
+// Formats a diagnostic as a human-readable error message with file, line, and code.
 export const describeDiagnostic = (compiler: Compiler, diagnostic: ts.Diagnostic): string => {
   const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')
   const sourceFile = diagnostic.file

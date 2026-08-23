@@ -16,6 +16,7 @@ import type { EditPlan, FileEdit } from './edit.ts'
 import { explainLookup } from './query.ts'
 import { ancestorsAtPosition, lineAt, resolveSymbol, sourceOf, type Workspace } from './workspace.ts'
 
+// Specifies a new parameter list and argument mapping for a signature change.
 export type SignatureChange = {
   // The new parameter list, as source text: one entry per parameter.
   readonly parameters: readonly string[]
@@ -179,6 +180,7 @@ const refuse = (name: string, problems: readonly Problem[]): EditPlan =>
       .join('\n'),
   )
 
+// Change the parameter list of a function and update all its call sites, producing an edit plan.
 export const changeSignature = (
   workspace: Workspace,
   name: string,

@@ -5,6 +5,7 @@ import type { SymbolInfo, SymbolKind } from '../../core/src/index.ts'
 import { declarationText } from './declaration.ts'
 import { lineTextAt, resolveSymbol, sourceOf, type SymbolLookup, type Workspace } from './workspace.ts'
 
+// The result of a tool call: success or failure with human-readable text.
 export type ToolOutput = {
   readonly ok: boolean
   readonly text: string
@@ -27,8 +28,10 @@ const describeSymbol = (symbol: SymbolInfo): string =>
 const withDocLine = (symbol: SymbolInfo, text: string): string =>
   symbol.docLine === undefined ? text : `${text} — ${symbol.docLine}`
 
+// The error case when a symbol lookup fails.
 export type LookupFailure = Extract<SymbolLookup, { readonly ok: false }>
 
+// Explain why a symbol lookup failed.
 export const explainLookup = (name: string, lookup: LookupFailure): ToolOutput =>
   lookup.reason === 'not-found'
     ? failed(`no declaration named ${name}. Try search.`)
@@ -60,6 +63,7 @@ const outlineOfFile = (
   )
 }
 
+// List the signatures of top-level declarations in the given files.
 export const outline = (
   workspace: Workspace,
   files: readonly string[],
@@ -69,6 +73,7 @@ export const outline = (
   text: files.flatMap((file) => outlineOfFile(workspace, file, includeNested)).join('\n'),
 })
 
+// Return the full source code of a named declaration.
 export const symbolSource = (
   workspace: Workspace,
   name: string,
@@ -82,6 +87,7 @@ export const symbolSource = (
     : { ok: true, text: `${located(lookup.symbol)}\n${source}` }
 }
 
+// List all references to a named symbol, including its definition.
 export const usages = (
   workspace: Workspace,
   name: string,
@@ -117,6 +123,7 @@ const isKind = (value: string): value is SymbolKind =>
 
 const SEARCH_LIMIT = 60
 
+// Find declarations matching a query string, with optional filtering by kind.
 export const search = (
   workspace: Workspace,
   query: string,

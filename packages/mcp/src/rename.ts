@@ -53,6 +53,7 @@ const occurrencesIn = (
   )
 }
 
+// Find shorthand and aliased occurrences of a named symbol that a rename cannot safely rewrite.
 export const unrewritableOccurrences = (
   workspace: Workspace,
   name: string,
@@ -76,6 +77,7 @@ const collisions = (
     )
     .map((symbol) => `${symbol.file}:${symbol.line}`)
 
+// Rename all occurrences of a symbol to a new identifier, producing an edit plan.
 export const renameSymbol = (
   workspace: Workspace,
   name: string,

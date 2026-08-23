@@ -70,6 +70,7 @@ const reportFile = (compiler: Compiler, file: string): FileReport =>
     ? reportErrors(compiler, file, diagnosticsIn(compiler, file))
     : { count: 0, lines: [`${file}: not in the program`] }
 
+// Reports type errors and syntax errors for the given files.
 export const diagnostics = (compiler: Compiler, files: readonly string[]): ToolOutput => {
   const known = files.filter((file) => inProgram(compiler, file))
   const reports = files.map((file) => reportFile(compiler, file))
@@ -126,6 +127,7 @@ const describeOffer = (compiler: Compiler, offer: Offer): string => {
   return `  ${offer.fix.fixName} — ${offer.fix.description} — touches ${touchedBy(compiler, offer.fix).join(', ')}${creates}`
 }
 
+// Lists available code fixes for errors at a given file and line.
 export const codeFixes = (
   compiler: Compiler,
   file: string,
@@ -194,6 +196,7 @@ export const applyCodeFix = (
   }
 }
 
+// Creates a plan to organize imports: remove unused and sort.
 export const organizeImports = (compiler: Compiler, files: readonly string[]): EditPlan => {
   const missing = files.filter((file) => !inProgram(compiler, file))
   if (missing.length > 0) return declined(`not in the program: ${missing.join(', ')}`)

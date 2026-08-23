@@ -25,6 +25,7 @@ import { createCompiler, type Compiler } from './compiler.ts'
 import { snapshotOfWorkspace, type Snapshot } from './checkpoint.ts'
 import type { Workspace } from './workspace.ts'
 
+// Outcome of writing edits to disk: modified file paths on success, error text on failure.
 export type WriteResult =
   | { readonly ok: true; readonly files: readonly string[] }
   | { readonly ok: false; readonly text: string }
@@ -132,6 +133,7 @@ const rebuild = async (
   return { ...repo, session, workspace: { index: session.index, sources }, timestamps }
 }
 
+// Loads or reloads the workspace, tracking changes since the last call.
 export const loadWorkspace = async (repoDir: string): Promise<Workspace> => {
   const repo = current
   if (repo === undefined || repo.repoDir !== repoDir) {
@@ -211,6 +213,7 @@ const snapshotLimit = 10
 
 let snapshots: readonly Snapshot[] = []
 
+// Records a snapshot and retains it for later restoration or comparison.
 export const takeCheckpoint = (workspace: Workspace, label: string, takenAt: number): Snapshot => {
   const snapshot = snapshotOfWorkspace(workspace, label, takenAt)
   snapshots = [snapshot, ...snapshots.filter((held) => held.label !== label)].slice(0, snapshotLimit)
@@ -222,8 +225,10 @@ export const takeCheckpoint = (workspace: Workspace, label: string, takenAt: num
 export const heldSnapshot = (label: string | undefined): Snapshot | undefined =>
   label === undefined ? snapshots[0] : snapshots.find((held) => held.label === label)
 
+// Returns the labels of all held checkpoints, in reverse chronological order.
 export const heldLabels = (): readonly string[] => snapshots.map((snapshot) => snapshot.label)
 
+// Extracts the current source texts from the workspace.
 export const textsOf = (workspace: Workspace): ReadonlyMap<string, string> =>
   new Map([...workspace.sources].map(([file, source]) => [file, source.text]))
 

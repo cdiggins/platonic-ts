@@ -97,6 +97,7 @@ const asCounts = (value: JsonObject | undefined): RatchetCounts | undefined => {
   }
 }
 
+// Counts files and escape-hatch declarations in the target directory's source code.
 export const scanTarget = async (
   targetDir: string,
 ): Promise<{ readonly counts: RatchetCounts; readonly fileCount: number }> => {
@@ -107,6 +108,7 @@ export const scanTarget = async (
   return { counts: sumCounts(counts), fileCount: files.length }
 }
 
+// Creates a snapshot of the target repository's config files, git status, and escape hatches.
 export const snapshotTarget = async (targetDir: string): Promise<TargetSnapshot> => {
   const present = await Promise.all(
     probedFiles.map(async (name) => ((await exists(join(targetDir, name))) ? [name] : [])),
@@ -195,6 +197,7 @@ const applyAction = async (
   }
 }
 
+// Applies an InitPlan to the target repository, writing files or running in dry-run mode.
 export const applyPlan = async (
   targetDir: string,
   plan: InitPlan,

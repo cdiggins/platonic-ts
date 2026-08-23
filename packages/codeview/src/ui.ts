@@ -752,6 +752,7 @@ const explainHtml = `
     reads nothing about agents. The two are deliberately separate tools.</p>
 `
 
+// Renders the complete HTML page for code browsing.
 export const renderPage = (): string => `<!doctype html>
 <html lang="en">
 <head>

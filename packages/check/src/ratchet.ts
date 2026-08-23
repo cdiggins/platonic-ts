@@ -9,6 +9,7 @@
 // which AST node it attaches to.
 import ts from 'typescript'
 
+// Tallies of code quality escape hatches in a file.
 export type RatchetCounts = {
   readonly explicitAny: number
   readonly asCasts: number
@@ -36,6 +37,7 @@ const countKeys: readonly (keyof RatchetCounts)[] = [
   'undocumentedExports',
 ]
 
+// Sums counts across multiple files.
 export const sumCounts = (counts: readonly RatchetCounts[]): RatchetCounts =>
   counts.reduce<RatchetCounts>(
     (acc, c) => ({
@@ -49,6 +51,7 @@ export const sumCounts = (counts: readonly RatchetCounts[]): RatchetCounts =>
     zero,
   )
 
+// Compares current counts to baseline and identifies regressions.
 export const compareToBaseline = (
   current: RatchetCounts,
   baseline: RatchetCounts,
@@ -149,6 +152,7 @@ const countUndocumentedExports = (sourceFile: ts.SourceFile): number =>
       !hasLeadingDoc(sourceFile, statement),
   ).length
 
+// Counts all code quality escape hatches in a source file.
 export const countEscapeHatches = (fileName: string, sourceText: string): RatchetCounts => {
   const sourceFile = ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true)
   const astCounts = countNode(sourceFile)

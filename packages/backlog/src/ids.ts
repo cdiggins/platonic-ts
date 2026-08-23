@@ -8,14 +8,17 @@
 // with exclusive-create so two processes can never claim the same one. Markers
 // are permanent, so renaming or deleting a ticket never frees its number.
 
+// Number of digits in formatted backlog IDs.
 export const idDigits = 4
 
 // Generated views live beside the items but are not items.
 export const generatedViews: readonly string[] = ['BACKLOG.md', 'DONE.md']
 
+// Formats a numeric ID as a backlog ID string (e.g., "BL-0001").
 export const formatBacklogId = (value: number): string =>
   `BL-${String(value).padStart(idDigits, '0')}`
 
+// Formats a numeric ID as a marker name (e.g., "0001").
 export const formatMarkerName = (value: number): string => String(value).padStart(idDigits, '0')
 
 // `BL-0025-slug.md`, `BL-0025.md`, and bare `BL-0025` all denote number 25.
@@ -26,11 +29,13 @@ const toNumber = (digits: string): number | undefined => {
   return Number.isNaN(parsed) ? undefined : parsed
 }
 
+// Extracts the numeric ID from a backlog ID string, if present.
 export const backlogIdNumber = (name: string): number | undefined => {
   const digits = name.match(idPattern)?.[1]
   return digits === undefined ? undefined : toNumber(digits)
 }
 
+// Extracts the numeric ID from a marker name, if it is all digits.
 export const markerNumber = (name: string): number | undefined =>
   /^\d{4,}$/.test(name) ? toNumber(name) : undefined
 
@@ -43,9 +48,11 @@ const numbersFrom = (
     return value === undefined ? [] : [value]
   })
 
+// Collects all numeric IDs used in backlog filenames.
 export const usedNumbers = (filenames: readonly string[]): readonly number[] =>
   numbersFrom(filenames, backlogIdNumber)
 
+// Collects all numeric IDs from marker file names.
 export const markerNumbers = (filenames: readonly string[]): readonly number[] =>
   numbersFrom(filenames, markerNumber)
 
@@ -60,9 +67,11 @@ export const firstFreeNumber = (used: readonly number[]): number =>
 // by hand, outside the allocator, that collides with or misnames a number.
 // ---------------------------------------------------------------------------
 
+// Classification of backlog ID validation errors.
 export type BacklogIdIssueKind =
   'duplicate-number' | 'unnumbered-file' | 'unparseable-file' | 'id-mismatch' | 'missing-marker'
 
+// A single backlog ID validation error.
 export type BacklogIdIssue = {
   readonly kind: BacklogIdIssueKind
   readonly detail: string
@@ -117,6 +126,7 @@ const fileIssues = (
   return [...naming, ...claim]
 }
 
+// Validates backlog item IDs and marker file consistency.
 export const validateBacklogIds = (
   files: readonly BacklogFileInfo[],
   markers: readonly string[],

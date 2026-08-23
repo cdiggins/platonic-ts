@@ -177,6 +177,7 @@ export const parseTranscriptLine = (file: string, line: string): AgentActivity |
 // Tool/skill invocation history (additive; does not change parseTranscriptLine)
 // ---------------------------------------------------------------------------
 
+// One tool invocation extracted from a transcript line (assistant message with a tool_use block).
 export type ToolInvocation = {
   readonly file: string
   readonly sessionId: string | undefined
@@ -260,6 +261,7 @@ export const invocationHistory = (
 
 const isTranscriptFileName = (name: string): boolean => name.endsWith('.jsonl') || name.endsWith('.output')
 
+// Discovers JSONL transcript files in given directories (names like `*.output` or `session-*.jsonl`).
 export const discoverTranscriptFiles = async (
   dirs: readonly string[],
 ): Promise<readonly string[]> => {
@@ -318,10 +320,12 @@ type FileTailState = {
   readonly remainder: string
 }
 
+// Persisted tail-reader state: file offsets and partial-line buffers for resuming polls.
 export type TailState = {
   readonly files: ReadonlyMap<string, FileTailState>
 }
 
+// Creates an empty tail state for starting fresh polls.
 export const createTailState = (): TailState => ({ files: new Map() })
 
 const readAppended = async (
@@ -347,6 +351,7 @@ type FilePollResult = {
   readonly activities: readonly AgentActivity[]
 }
 
+// Polls transcript files for new activities since the last state, resuming from file offsets.
 export const pollTranscripts = async (
   dirs: readonly string[],
   state: TailState,
@@ -390,6 +395,7 @@ export const pollTranscripts = async (
 // Aggregations
 // ---------------------------------------------------------------------------
 
+// Derives per-file agent statuses from activities: latest activity time, tool, model, session, etc.
 export const computeStatuses = (
   activities: readonly AgentActivity[],
   now: number,
@@ -434,6 +440,7 @@ export const computeStatuses = (
   return [...statuses].sort((a, b) => a.file.localeCompare(b.file))
 }
 
+// Aggregates token usage across activities, grouped by model, within a time window.
 export const summarizeUsage = (
   activities: readonly AgentActivity[],
   now: number,

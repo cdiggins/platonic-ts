@@ -189,6 +189,7 @@ const finishRename = async (
     : { ok: false, text: `${result.text}\nbut the file did not move: ${problem}` }
 }
 
+// Executes a tool call, returning either a preview or an applied result.
 export const callTool = async (
   options: CallOptions,
   name: string,

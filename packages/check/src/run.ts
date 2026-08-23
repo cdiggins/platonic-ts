@@ -10,8 +10,10 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { compareToBaseline, type RatchetCounts } from './ratchet.ts'
 import { scanRepo } from './scan.ts'
 
+// Names of validation steps that can be run independently.
 export type StepName = 'typecheck' | 'lint' | 'ratchet' | 'tests' | 'backlog'
 
+// Outcome of a single validation step.
 export type CheckStepResult = {
   readonly name: StepName
   readonly ok: boolean
@@ -19,13 +21,16 @@ export type CheckStepResult = {
   readonly detail: string
 }
 
+// Results of running all validation steps.
 export type CheckReport = {
   readonly steps: readonly CheckStepResult[]
   readonly ok: boolean
 }
 
+// Comparison result of current counts to baseline.
 export type RatchetVerdict = 'ok' | 'improved' | 'regressed' | 'initialized'
 
+// Result of applying and possibly updating a ratchet baseline.
 export type ApplyBaselineResult = {
   readonly verdict: RatchetVerdict
   readonly regressions: readonly string[]
@@ -146,6 +151,7 @@ const runStep = async (
 
 const defaultSteps: readonly StepName[] = ['typecheck', 'lint', 'ratchet', 'tests', 'backlog']
 
+// Runs validation steps in order and stops at first failure.
 export const runCheck = async (options: {
   readonly repoDir: string
   readonly baselinePath: string

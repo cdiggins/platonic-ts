@@ -19,10 +19,12 @@ type FileTailState = {
   readonly remainder: string
 }
 
+// Tracks file offsets and line remainders for incremental polling of tool invocations.
 export type InvocationTailState = {
   readonly files: ReadonlyMap<string, FileTailState>
 }
 
+// Creates initial state for polling invocations with no prior tail positions.
 export const createInvocationTailState = (): InvocationTailState => ({ files: new Map() })
 
 const readAppended = async (file: string, size: number, offset: number): Promise<string> => {

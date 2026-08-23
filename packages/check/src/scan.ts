@@ -17,6 +17,7 @@ const walkTsFiles = async (dir: string): Promise<readonly string[]> => {
   return found.flat()
 }
 
+// Gathers all TypeScript source files from all packages.
 export const collectSourceFiles = async (repoDir: string): Promise<readonly string[]> => {
   const packagesDir = join(repoDir, 'packages')
   const packageDirs = await readdir(packagesDir, { withFileTypes: true }).catch(() => [])
@@ -27,6 +28,7 @@ export const collectSourceFiles = async (repoDir: string): Promise<readonly stri
   return files.flat()
 }
 
+// Scans all TypeScript files and sums escape hatch counts.
 export const scanRepo = async (repoDir: string): Promise<RatchetCounts> => {
   const files = await collectSourceFiles(repoDir)
   const counts = await Promise.all(

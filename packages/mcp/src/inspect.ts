@@ -50,6 +50,7 @@ const metricsOfDeclaration = (
       : fileMetrics(parse(sourceFile.fileName, text), text)
 }
 
+// Reports size and complexity metrics for a symbol and its containing file.
 export const symbolMetrics = (
   workspace: Workspace,
   name: string,
@@ -215,6 +216,7 @@ const baselineLine = (
   return `baseline ${totalOf(baseline)} in ratchet.json, counted ${totalOf(counts)} — ${verdict.verdict}${named}${scope}`
 }
 
+// Lists escape hatches (ts-ignore, eslint-disable, etc) in the codebase.
 export const escapeHatchIndex = (workspace: Workspace, folder: string | undefined): ToolOutput => {
   const files = tsFilesOf(workspace, folder)
   const perFile = files.map((file) => ({

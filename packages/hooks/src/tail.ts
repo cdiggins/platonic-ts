@@ -13,10 +13,12 @@ type FileHookTailState = {
   readonly remainder: string
 }
 
+// Persisted state for resuming hook event file polls from the last known offset.
 export type HookTailState = {
   readonly files: ReadonlyMap<string, FileHookTailState>
 }
 
+// Creates an empty hook tail state for starting fresh polls.
 export const createHookTailState = (): HookTailState => ({ files: new Map() })
 
 // Reads a range [offset, offset+length) from a file.

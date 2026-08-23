@@ -2,6 +2,7 @@
 // nothing is written unless `--yes` is present — is testable without a filesystem.
 import type { StrictnessProfile } from './index.ts'
 
+// Result of parsing CLI arguments: success with config, or failure with error message.
 export type ParsedArgs =
   | {
       readonly ok: true

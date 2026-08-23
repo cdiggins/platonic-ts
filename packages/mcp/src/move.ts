@@ -138,6 +138,7 @@ const importEdits = (
     return sourceFile === undefined ? [] : importEditsFor(file, sourceFile, drops.filter(here), adds.filter(here))
   })
 
+// Creates a plan to rename a file, updating all imports in other files.
 export const renameFile = (compiler: Compiler, file: string, newPath: string): EditPlan => {
   // The language service throws on a file the program does not contain, so the
   // guard has to come before the call, not around it.
@@ -240,6 +241,7 @@ const refusal = (workspace: Workspace, move: Move): string | undefined => {
     : undefined
 }
 
+// Creates a plan to move a symbol to another file, updating all references and imports.
 export const moveSymbol = (
   workspace: Workspace, name: string, fromFile: string | undefined, toFile: string,
 ): EditPlan => {

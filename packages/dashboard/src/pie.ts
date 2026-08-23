@@ -4,12 +4,14 @@
 // JS implementation (it runs in the browser against live SSE data and cannot
 // import an ES module), so keep the two in sync when the formula changes.
 
+// Input slice for pie chart rendering.
 export type PieSlice = {
   readonly label: string
   readonly value: number
   readonly color: string
 }
 
+// SVG arc path and metadata for a pie chart slice.
 export type PieArc = {
   readonly slice: PieSlice
   readonly startAngle: number
@@ -105,4 +107,5 @@ export const PIE_PALETTE: readonly string[] = [
   '#a5d6ff',
 ]
 
+// Maps an index to a palette color, wrapping if the index exceeds palette length.
 export const colorForIndex = (index: number): string => PIE_PALETTE[index % PIE_PALETTE.length] ?? '#6b7793'

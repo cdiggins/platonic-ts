@@ -76,6 +76,7 @@ const indexLines = (compiler: Compiler, node: ts.Node, type: ts.Type): readonly 
 const formatFor = (node: ts.Node): ts.TypeFormatFlags =>
   ts.isTypeAliasDeclaration(node.parent) ? FORMAT | ts.TypeFormatFlags.InTypeAlias : FORMAT
 
+// Resolve the type of a named symbol and display it with call and constructor signatures.
 export const typeOf = (compiler: Compiler, name: string, file: string | undefined): ToolOutput => {
   const located = locate(compiler, name, file)
   if (!located.ok) return located.output
@@ -152,6 +153,7 @@ const memberOf = (compiler: Compiler, node: ts.Node, owner: string, property: ts
 const byOwnThenName = (left: Member, right: Member): number =>
   left.own === right.own ? (left.name < right.name ? -1 : 1) : left.own ? -1 : 1
 
+// List the properties and call signatures of a named type.
 export const membersOf = (compiler: Compiler, name: string, file: string | undefined): ToolOutput => {
   const located = locate(compiler, name, file)
   if (!located.ok) return located.output

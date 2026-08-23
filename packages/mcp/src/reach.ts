@@ -133,6 +133,7 @@ const flattenIds = (nodes: readonly CallerNode[]): readonly string[] =>
 
 const countCallers = (nodes: readonly CallerNode[]): number => new Set(flattenIds(nodes)).size
 
+// Show functions that call a named symbol, with optional depth limit.
 export const callers = (
   workspace: Workspace,
   name: string,
@@ -186,6 +187,7 @@ const coverageLines = (
   return [...direct, ...indirect]
 }
 
+// List tests that exercise a named symbol.
 export const testsForSymbol = (
   workspace: Workspace,
   name: string,
@@ -204,6 +206,7 @@ export const testsForSymbol = (
   }
 }
 
+// Show the uses, callers, and tests of a named symbol to assess the scope of potential changes.
 export const blastRadius = (
   workspace: Workspace,
   name: string,

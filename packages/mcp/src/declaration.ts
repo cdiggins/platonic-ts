@@ -5,6 +5,7 @@ import ts from 'typescript'
 import type { SymbolInfo } from '../../core/src/index.ts'
 import { ancestorsAtPosition } from './workspace.ts'
 
+// Byte offsets marking the start and end of a region in source text.
 export type SourceRange = {
   readonly start: number
   readonly end: number
@@ -65,6 +66,7 @@ const startOfLeadingComments = (sourceFile: ts.SourceFile, node: ts.Node): numbe
   ).start
 }
 
+// Returns the range of a declaration including its leading doc comment.
 export const declarationRange = (
   sourceFile: ts.SourceFile,
   symbol: SymbolInfo,
@@ -75,6 +77,7 @@ export const declarationRange = (
     : { start: startOfLeadingComments(sourceFile, node), end: node.end }
 }
 
+// Returns the full source text of a declaration, from leading comments to closing brace.
 export const declarationText = (
   sourceFile: ts.SourceFile,
   symbol: SymbolInfo,

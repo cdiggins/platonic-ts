@@ -4,6 +4,7 @@
 // data and cannot import an ES module), so keep the two in sync when the
 // arithmetic changes.
 
+// Input to pagination: total row count, desired page number, and rows per page.
 export type PageRequest = {
   readonly total: number
   readonly page: number
@@ -11,6 +12,7 @@ export type PageRequest = {
   readonly size: number
 }
 
+// Result of pagination: page number, page count, row slice, and navigation flags.
 export type Page = {
   readonly page: number
   readonly pageCount: number
@@ -20,10 +22,13 @@ export type Page = {
   readonly hasNext: boolean
 }
 
+// Available page sizes for tables; zero means show all rows.
 export const PAGE_SIZES: readonly number[] = [10, 25, 50, 0]
 
+// Default rows per page.
 export const DEFAULT_PAGE_SIZE = 25
 
+// Formats a page size for display: "25 per page" or "all".
 export const pageSizeLabel = (size: number): string =>
   size === 0 ? 'all' : `${size} per page`
 
@@ -51,6 +56,7 @@ export const computePage = (request: PageRequest): Page => {
 export const pageRangeLabel = (page: Page, total: number, noun: string): string =>
   total === 0 ? `0 ${noun}` : `${page.start + 1}-${page.end} of ${total}`
 
+// Formats page number for display: "page N of M".
 export const pageLabel = (page: Page): string => `page ${page.page + 1} of ${page.pageCount}`
 
 const pageSizeOptionsHtml = PAGE_SIZES.map(
@@ -71,6 +77,7 @@ export const pagerMarkup = (prefix: string): string => `
       <span class="muted" id="${prefix}-count"></span>
     </div>`
 
+// CSS styles for pager controls.
 export const pagerStyles = `
   .pager { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
   .pager-button {

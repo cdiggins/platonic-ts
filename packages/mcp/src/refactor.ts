@@ -65,6 +65,7 @@ const applicableAt = (
 
 const located = (target: Target): string => `${target.file}:${target.line}`
 
+// List refactorings that the language service can apply at a named symbol.
 export const availableRefactors = (
   compiler: Compiler,
   name: string,
@@ -88,6 +89,7 @@ export const availableRefactors = (
       }
 }
 
+// Apply a named refactoring and action at a symbol, producing an edit plan.
 export const applyRefactor = (
   compiler: Compiler,
   name: string,

@@ -6,6 +6,7 @@ import { asString, isRecord } from './payload.ts'
 export type { HookTailState } from './tail.ts'
 export { createHookTailState, pollHookEvents } from './tail.ts'
 
+// Event logged by Claude Code hooks: a tool use or session start with context metadata.
 export type HookEvent = {
   readonly type: 'tool' | 'session-start'
   readonly timestamp: string

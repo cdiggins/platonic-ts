@@ -10,11 +10,16 @@ import type {
 } from '../../core/src/index.ts'
 import { renderPage } from './ui.ts'
 
+// Function that returns the code index.
 export type IndexProvider = () => Promise<CodeIndex>
+// Function that returns the view (source and metadata) for a file, or undefined if not found.
 export type FileViewProvider = (file: string) => Promise<FileView | undefined>
+// Function that returns all references to a symbol.
 export type ReferenceProvider = (symbolId: string) => Promise<readonly SymbolReference[]>
+// Function that accepts feedback and persists it, returning the result.
 export type FeedbackSink = (input: FeedbackInput) => Promise<FeedbackResult>
 
+// Configuration for the code view server.
 export type CodeViewOptions = {
   readonly port: number
   readonly index: IndexProvider

@@ -27,6 +27,7 @@ export type SliceKey =
   | 'userText'
   | 'injected'
 
+// Actual token counts reported by Claude's API for a message.
 export type TokenUsage = {
   readonly outputTokens: number
   readonly inputTokens: number
@@ -34,6 +35,7 @@ export type TokenUsage = {
   readonly cacheCreationTokens: number
 }
 
+// One parsed transcript entry (one JSON line from a JSONL transcript file).
 export type ParsedEntry = {
   readonly file: string
   readonly sessionId: string | undefined
@@ -91,6 +93,7 @@ const toolResultBytes = (content: unknown): number => {
   )
 }
 
+// Parses one JSON line from a transcript file into a ParsedEntry, or undefined if parsing fails.
 export const parseEntry = (file: string, line: string): ParsedEntry | undefined => {
   const trimmed = line.trim()
   if (trimmed.length === 0) return undefined
@@ -235,6 +238,7 @@ export const dedupeEntries = (entries: readonly ParsedEntry[]): readonly ParsedE
 // Tables
 // ---------------------------------------------------------------------------
 
+// In-memory table data: title, column names, rows (as string cells), and optional notes.
 export type Table = {
   readonly title: string
   readonly columns: readonly string[]
@@ -243,9 +247,9 @@ export type Table = {
   readonly notes: readonly string[]
 }
 
-// Rough prose-to-token estimate. Exact bytes are always shown alongside; this is a
-// planning aid, not billing truth.
+// Rough heuristic for estimating tokens from byte counts: 1 token ≈ 4 bytes of UTF-8 text.
 export const BYTES_PER_TOKEN = 4
+// Estimates tokens from byte count using BYTES_PER_TOKEN.
 export const estTokens = (bytes: number): number => Math.round(bytes / BYTES_PER_TOKEN)
 
 const fmtInt = (n: number): string => Math.round(n).toLocaleString('en-US')
@@ -491,6 +495,7 @@ export const skillsTable = (entries: readonly ParsedEntry[]): Table => {
   }
 }
 
+// Generates a table of API token usage grouped by model name.
 export const modelsTable = (entries: readonly ParsedEntry[]): Table => {
   const models = [...new Set(entries.map((e) => e.model).filter((m): m is string => m !== undefined))]
   const rows = models
@@ -556,6 +561,7 @@ export const grepTable = (entries: readonly ParsedEntry[], pattern: RegExp): Tab
 
 const NUMERIC = /^[\d,.%\s—-]+(?:B|KB|MB|min)?$/
 
+// Renders a Table to Markdown: ASCII table with right-aligned numeric columns and notes below.
 export const renderTable = (table: Table): string => {
   const widths = table.columns.map((col, i) =>
     Math.max(col.length, ...table.rows.map((r) => (r[i] ?? '').length)),

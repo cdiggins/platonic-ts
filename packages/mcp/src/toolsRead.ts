@@ -4,6 +4,7 @@
 // what it cannot see.
 import { count, flag, folder, symbolFile, symbolName, text, textList, tool, type ToolSpec } from './schema.ts'
 
+// Tools for exploring the codebase structure and finding declarations.
 export const navigationTools: readonly ToolSpec[] = [
   tool(
     'outline',
@@ -48,6 +49,7 @@ export const navigationTools: readonly ToolSpec[] = [
   ),
 ]
 
+// Tools for inspecting types and error diagnostics.
 export const typeTools: readonly ToolSpec[] = [
   tool(
     'type_of',
@@ -78,12 +80,13 @@ export const typeTools: readonly ToolSpec[] = [
   ),
   tool(
     'refactorings',
-    'The compiler’s own refactorings that apply to a declaration, by refactor and action name. The escape hatch for transformations the specific tools do not cover; feed a pair to apply_refactor.',
+    'The compiler\'s own refactorings that apply to a declaration, by refactor and action name. The escape hatch for transformations the specific tools do not cover; feed a pair to apply_refactor.',
     { name: symbolName, file: symbolFile },
     ['name'],
   ),
 ]
 
+// Tools for analyzing code relationships, quality metrics, and changes.
 export const analysisTools: readonly ToolSpec[] = [
   tool(
     'callers',
@@ -127,7 +130,7 @@ export const analysisTools: readonly ToolSpec[] = [
   ),
   tool(
     'symbol_metrics',
-    'Length, statements, nesting, parameters, and quality score for one declaration, beside its file’s own numbers, so you can see whether it is the outlier or the norm. Ask before deciding what to refactor.',
+    'Length, statements, nesting, parameters, and quality score for one declaration, beside its file\'s own numbers, so you can see whether it is the outlier or the norm. Ask before deciding what to refactor.',
     { name: symbolName, file: symbolFile },
     ['name'],
   ),

@@ -16,6 +16,7 @@ const gateTool: ToolSpec = tool(
   [],
 )
 
+// All available tools provided by this server.
 export const toolSpecs: readonly ToolSpec[] = [
   ...navigationTools,
   ...typeTools,

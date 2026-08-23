@@ -7,28 +7,33 @@ export type ToolSchema = {
   readonly required: readonly string[]
 }
 
+// A complete tool definition with name, description, and parameter schema.
 export type ToolSpec = {
   readonly name: string
   readonly description: string
   readonly inputSchema: ToolSchema
 }
 
+// Build a schema property for a single string argument.
 export const text = (description: string): Readonly<Record<string, unknown>> => ({
   type: 'string',
   description,
 })
 
+// Build a schema property for an array of strings.
 export const textList = (description: string): Readonly<Record<string, unknown>> => ({
   type: 'array',
   items: { type: 'string' },
   description,
 })
 
+// Build a schema property for a boolean flag.
 export const flag = (description: string): Readonly<Record<string, unknown>> => ({
   type: 'boolean',
   description,
 })
 
+// Build a schema property for an integer.
 export const count = (description: string): Readonly<Record<string, unknown>> => ({
   type: 'integer',
   description,
@@ -48,6 +53,7 @@ export const preview = flag(
 
 export const folder = text('Repo-relative folder to limit the answer to. Default is the whole repository.')
 
+// Construct a tool spec from name, description, and parameter schema.
 export const tool = (
   name: string,
   description: string,
@@ -55,14 +61,17 @@ export const tool = (
   required: readonly string[],
 ): ToolSpec => ({ name, description, inputSchema: { type: 'object', properties, required } })
 
+// Extract a string argument from a tool call, or undefined if not present or not a string.
 export const readText = (
   args: Readonly<Record<string, unknown>>,
   key: string,
 ): string | undefined => (typeof args[key] === 'string' ? args[key] : undefined)
 
+// Extract a boolean flag from a tool call, defaulting to false.
 export const readFlag = (args: Readonly<Record<string, unknown>>, key: string): boolean =>
   args[key] === true
 
+// Extract a finite number from a tool call, or undefined if not present or not a valid number.
 export const readCount = (
   args: Readonly<Record<string, unknown>>,
   key: string,
@@ -71,6 +80,7 @@ export const readCount = (
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
+// Extract an array of strings from a tool call, or undefined if not present or not valid.
 export const readTextList = (
   args: Readonly<Record<string, unknown>>,
   key: string,
@@ -79,6 +89,7 @@ export const readTextList = (
   return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined
 }
 
+// Extract an array of objects from a tool call, or undefined if not present or not valid.
 export const readRecordList = (
   args: Readonly<Record<string, unknown>>,
   key: string,

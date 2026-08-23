@@ -9,6 +9,7 @@ import { renderPage } from './ui.ts'
 import { parseUsageRange, sliceActivitiesByRange } from './range.ts'
 import type { CommitRow } from './commits.ts'
 
+// Function that returns a dashboard snapshot.
 export type SnapshotProvider = () => Promise<DashboardSnapshot>
 
 // Optional: raw activities behind the snapshot's usage totals, so the server can
@@ -136,6 +137,7 @@ const handleCommits = async (res: ServerResponse, commitsProvider: CommitsProvid
   }
 }
 
+// Starts the dashboard HTTP server with the given configuration.
 export const startDashboard = (options: {
   readonly port: number
   readonly provider: SnapshotProvider

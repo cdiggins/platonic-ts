@@ -5,6 +5,7 @@
 
 import type { CommitInfo, CommitSessionLink } from '../../gitlink/src/index.ts'
 
+// Display row for a git commit with session correlation.
 export type CommitRow = {
   readonly hash: string
   readonly shortHash: string

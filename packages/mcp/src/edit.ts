@@ -5,6 +5,7 @@ import { declarationRange, syntaxErrorIn } from './declaration.ts'
 import { explainLookup } from './query.ts'
 import { resolveSymbol, sourceOf, type Workspace } from './workspace.ts'
 
+// A single text replacement: file path, byte range, and replacement text.
 export type FileEdit = {
   readonly file: string
   readonly start: number
@@ -12,6 +13,7 @@ export type FileEdit = {
   readonly text: string
 }
 
+// Outcome of a change request: edits and summary on success, error text on failure.
 export type EditPlan =
   | { readonly ok: true; readonly edits: readonly FileEdit[]; readonly summary: string }
   | { readonly ok: false; readonly text: string }
@@ -53,6 +55,7 @@ export const applyEdits = (text: string, edits: readonly FileEdit[]): string =>
     .sort((left, right) => right.start - left.start)
     .reduce((current, edit) => current.slice(0, edit.start) + edit.text + current.slice(edit.end), text)
 
+// Groups edits by file for efficient application.
 export const editsByFile = (
   edits: readonly FileEdit[],
 ): ReadonlyMap<string, readonly FileEdit[]> =>
@@ -63,6 +66,7 @@ export const editsByFile = (
     ]),
   )
 
+// Creates a plan to replace a symbol's entire declaration with new source.
 export const replaceSymbol = (
   workspace: Workspace,
   name: string,
@@ -84,6 +88,7 @@ export const replaceSymbol = (
   }
 }
 
+// Creates a plan to insert a new declaration at the end of a file or after another declaration.
 export const insertSymbol = (
   workspace: Workspace,
   file: string,

@@ -15,6 +15,7 @@ const summarizeAction = (action: InitAction): string => {
   return `skip    ${action.path} — ${action.reason}`
 }
 
+// Formats an InitPlan as human-readable text: action summary, then manual steps.
 export const formatPlan = (plan: InitPlan): string => {
   const actionLines = plan.actions.map((action) => `  ${summarizeAction(action)}`)
   const manualLines =
@@ -29,6 +30,7 @@ export const formatPlan = (plan: InitPlan): string => {
   ].join('\n')
 }
 
+// Formats an ApplyReport as human-readable text: dry-run indicator and per-file outcomes.
 export const formatApplyReport = (report: ApplyReport): string => {
   const header = report.dryRun ? 'dry run — nothing written' : 'applied'
   const lines = report.outcomes.map(

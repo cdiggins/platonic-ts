@@ -18,6 +18,7 @@ import {
 import { readText } from './schema.ts'
 import { toolSpecs } from './tools.ts'
 
+// Configuration for the JSON-RPC server.
 export type ServerOptions = {
   readonly repoDir: string
   readonly baselinePath: string
@@ -60,6 +61,7 @@ const guarded = async (
     })),
   )
 
+// Process an RPC request and return a response.
 export const handleRequest = async (
   options: ServerOptions,
   request: RpcRequest,
@@ -87,6 +89,7 @@ export const handleRequest = async (
   }
 }
 
+// Parse and handle one line of input, returning a response if applicable.
 export const handleLine = async (
   options: ServerOptions,
   line: string,

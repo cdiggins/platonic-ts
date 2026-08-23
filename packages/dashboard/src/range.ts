@@ -4,8 +4,10 @@
 
 import type { AgentActivity } from '../../core/src/index.ts'
 
+// Time or count window for filtering activities.
 export type UsageRangeKey = 'last-hour' | 'today' | 'all' | 'last-100' | 'last-500'
 
+// All available usage range keys.
 export const USAGE_RANGES: readonly UsageRangeKey[] = [
   'last-hour',
   'today',
@@ -14,8 +16,10 @@ export const USAGE_RANGES: readonly UsageRangeKey[] = [
   'last-500',
 ]
 
+// Default time window for usage display.
 export const DEFAULT_USAGE_RANGE: UsageRangeKey = 'today'
 
+// Formats a usage range key for display.
 export const usageRangeLabel = (range: UsageRangeKey): string => {
   const labels: Record<UsageRangeKey, string> = {
     'last-hour': 'Last hour',

@@ -84,6 +84,7 @@ const parseFrontmatter = (text: string): ReadonlyMap<string, string> =>
     }),
   )
 
+// Parses a backlog item from file content, extracting frontmatter and body.
 export const parseBacklogFile = (file: string, content: string): BacklogItem | undefined => {
   const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/)
   if (!frontmatterMatch || !frontmatterMatch[1]) return undefined
@@ -162,6 +163,7 @@ export const loadBacklog = async (dir: string): Promise<readonly BacklogItem[]> 
   )
 }
 
+// Formats a backlog item as frontmatter followed by its body content.
 export const renderBacklogItem = (item: BacklogItem): string => {
   const links = `[${item.links.join(', ')}]`
   const lines = [
@@ -188,9 +190,11 @@ export const renderBacklogItem = (item: BacklogItem): string => {
 // but only ever grows, since items don't leave the done/dropped set).
 // ---------------------------------------------------------------------------
 
+// Checks if a backlog item is still open (not done or dropped).
 export const isOpen = (item: BacklogItem): boolean =>
   item.status !== 'done' && item.status !== 'dropped'
 
+// Generates BACKLOG.md table of open items, sorted by status and priority.
 export const buildBacklogTable = (items: readonly BacklogItem[]): string => {
   const open = items.filter(isOpen)
   const lines = [
@@ -211,6 +215,7 @@ export const buildBacklogTable = (items: readonly BacklogItem[]): string => {
   return `${lines.join('\n')}\n`
 }
 
+// Generates DONE.md log of closed items, newest first.
 export const buildDoneLog = (items: readonly BacklogItem[]): string => {
   const closed = items
     .filter((i) => !isOpen(i))

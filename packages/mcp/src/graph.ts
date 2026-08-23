@@ -116,6 +116,7 @@ const overrides = (workspace: Workspace, symbol: SymbolInfo): readonly string[] 
     })
 }
 
+// Lists classes and interfaces that extend or implement a given type.
 export const implementations = (
   workspace: Workspace,
   name: string,
@@ -211,6 +212,7 @@ const cyclesFrom = (
 const cyclesIn = (graph: Graph): readonly (readonly string[])[] =>
   [...graph.keys()].sort().flatMap((start) => cyclesFrom(graph, start, [start]))
 
+// Describes the module import graph: file count, import edges, and circular dependencies.
 export const moduleGraph = (workspace: Workspace, folder: string | undefined): ToolOutput => {
   const graph = importGraph(workspace)
   const scoped = [...graph.entries()]
@@ -236,6 +238,7 @@ export const moduleGraph = (workspace: Workspace, folder: string | undefined): T
 // unusedExports
 // ---------------------------------------------------------------------------
 
+// Lists exported symbols that are only referenced within their own file.
 export const unusedExports = (workspace: Workspace, folder: string | undefined): ToolOutput => {
   const fileById = new Map(workspace.index.symbols.map((symbol) => [symbol.id, symbol.file]))
   // A mention from another file counts, and a barrel's `export … from` is such
