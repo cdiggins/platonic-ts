@@ -6,6 +6,18 @@ import { PIE_PALETTE } from './pie.ts'
 
 const pieColorsJson = JSON.stringify(PIE_PALETTE)
 
+// Agent rows are capped by default: a long-lived repo accumulates hundreds of
+// transcripts, and only the recent ones say anything about what is running now.
+const AGENT_LIMITS = [10, 25, 50, 0] as const
+const DEFAULT_AGENT_LIMIT = 25
+
+const agentLimitLabel = (n: number): string => (n === 0 ? 'all' : `top ${n}`)
+
+const agentLimitOptionsHtml = AGENT_LIMITS.map(
+  (n) =>
+    `<option value="${n}"${n === DEFAULT_AGENT_LIMIT ? ' selected' : ''}>${agentLimitLabel(n)}</option>`,
+).join('')
+
 const rangeOptionsHtml = USAGE_RANGES.map(
   (r) =>
     `<option value="${r}"${r === DEFAULT_USAGE_RANGE ? ' selected' : ''}>${usageRangeLabel(r)}</option>`,
@@ -127,7 +139,15 @@ const clientScript = `
     }
   }
 
+  var lastSnapshot = null;
+
+  function agentLimit() {
+    var sel = document.getElementById('agent-limit');
+    return sel ? Number(sel.value) : ${DEFAULT_AGENT_LIMIT};
+  }
+
   function render(snapshot) {
+    lastSnapshot = snapshot;
     var now = Date.now();
     document.getElementById('last-update').textContent = new Date(snapshot.generatedAt).toLocaleTimeString();
     document.getElementById('tpm').textContent = formatTokens(Math.round(snapshot.usage.outputTokensPerMinute));
@@ -137,7 +157,18 @@ const clientScript = `
     if (snapshot.agents.length === 0) {
       agentsBody.innerHTML = '<tr><td colspan="8" class="empty">no agents</td></tr>';
     }
-    snapshot.agents.forEach(function (a) {
+    var byRecency = snapshot.agents.slice().sort(function (a, b) {
+      return b.lastActivityAt - a.lastActivityAt;
+    });
+    var limit = agentLimit();
+    var shown = limit === 0 ? byRecency : byRecency.slice(0, limit);
+    var agentCount = document.getElementById('agent-count');
+    if (agentCount) {
+      agentCount.textContent = shown.length < byRecency.length
+        ? 'showing ' + shown.length + ' of ' + byRecency.length + ', most recent first'
+        : byRecency.length + ' total';
+    }
+    shown.forEach(function (a) {
       var tr = document.createElement('tr');
       tr.innerHTML =
         '<td><span class="dot ' + (a.active ? 'active' : 'inactive') + '"></span></td>' +
@@ -364,6 +395,13 @@ const clientScript = `
     };
   }
 
+  var agentLimitSelect = document.getElementById('agent-limit');
+  if (agentLimitSelect) {
+    agentLimitSelect.addEventListener('change', function () {
+      if (lastSnapshot) render(lastSnapshot);
+    });
+  }
+
   var rangeSelect = document.getElementById('range-select');
   connect(rangeSelect ? rangeSelect.value : 'today');
   if (rangeSelect) {
@@ -507,7 +545,7 @@ export const renderPage = (): string => `<!doctype html>
     <h3>Purpose</h3>
     <p>This page shows what the coding agents working on this repository have done and are doing — which agents ran, on which models, at what token cost — alongside the work and ideas they have logged.</p>
     <h3>Agents</h3>
-    <p>One row per session transcript, including subagents (marked <span class="badge">sidechain</span>). Shows the model of the last assistant message, the most recent tool call, a snippet of the latest output, cumulative input/output tokens, and how long ago the transcript last changed. A green dot means the session was active recently, gray means it was not.</p>
+    <p>One row per session transcript, including subagents (marked <span class="badge">sidechain</span>). The dropdown caps how many rows are listed, most recently active first; pick <em>all</em> to see every transcript. Shows the model of the last assistant message, the most recent tool call, a snippet of the latest output, cumulative input/output tokens, and how long ago the transcript last changed. A green dot means the session was active recently, gray means it was not.</p>
     <h3>Usage</h3>
     <p>Token totals across every transcript being watched:</p>
     <ul>
@@ -540,7 +578,12 @@ export const renderPage = (): string => `<!doctype html>
   </div>
 
   <section>
-    <h2>Agents</h2>
+    <h2>Agents
+      <select id="agent-limit" class="range-select">
+        ${agentLimitOptionsHtml}
+      </select>
+      <span class="muted" id="agent-count"></span>
+    </h2>
     <table id="agents-table">
       <thead>
         <tr><th></th><th>Label</th><th>Model</th><th>Tool</th><th>Snippet</th><th>In</th><th>Out</th><th>Last activity</th></tr>
