@@ -1,0 +1,13 @@
+// Barrel for the MCP server's pure surface. One level of re-export (PS-023).
+export type { RequestId, RpcRequest, RpcResponse, ParsedLine } from './protocol.ts'
+export { parseLine, resultOf, errorOf, encodeResponse } from './protocol.ts'
+export type { ToolSpec, ToolSchema } from './tools.ts'
+export { toolSpecs, readText, readFlag, readTextList } from './tools.ts'
+export type { Workspace, SymbolLookup } from './workspace.ts'
+export { findSymbols, resolveSymbol, sourceOf } from './workspace.ts'
+export { declarationRange, declarationText, syntaxErrorIn } from './declaration.ts'
+export type { ToolOutput } from './query.ts'
+export { outline, symbolSource, usages, search, repoMap } from './query.ts'
+export type { FileEdit, EditPlan } from './edit.ts'
+export { applyEdits, editsByFile, replaceSymbol, insertSymbol } from './edit.ts'
+export { renameSymbol, unrewritableOccurrences } from './rename.ts'
