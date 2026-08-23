@@ -57,6 +57,57 @@ earlier `/track-work` framing of this item, which captured but never started.
 - **Status at filing** — `in-progress` at start (accurate; the point of the command) vs
   `ready` then a separate promotion (redundant). `in-progress` implied.
 
+## Design space — what can vary when work starts
+
+Every dimension below changes how a start goes. Most must be *derived or defaulted*, not
+asked: a command that asks twenty questions is slower than doing the work. Marked
+**[option]** are the ones worth surfacing as explicit choices.
+
+**A. What gets recorded (the item)**
+- Logged vs unlogged — new `BL-XXXX`, an existing id, or ad-hoc with no item. **[option]**
+- `## Done means` present vs absent — required here (it is the promotion gate's substance).
+- ADR needed — does the work decide something architectural (`decisions/`).
+- Sprint / dependency — blocked-by, ordering, sprint membership (owned by `track-backlog`).
+- Findings sink — item body, notes file, `docs/`, dashboard.
+
+**B. How the work splits**
+- Parallel vs serial — fenced wave vs single track. **[option]**
+- Track count + fence table — derived from the split (`parallel-wave` steps 3–4).
+- Shared-resource assignment — ports, which track may restart a server/daemon
+  (`parallel-wave` step 4).
+
+**C. Who does the work**
+- Current agent vs subagent — mostly a *consequence* of parallel-vs-serial, not an
+  independent axis; serial+subagent is for context saving (`cavecrew`) or long background runs.
+- Agent type — general-purpose, `Explore`, `cavecrew-builder`, reviewer.
+- Model / effort / token budget — weak-model delegation for mechanical tracks.
+- Foreground vs background — blocking, `run_in_background`, scheduled, remote.
+
+**D. Where the work happens**
+- Shared checkout vs worktree vs branch — fixed by repo policy: shared checkout; worktrees
+  only for spikes and long-running background agents (BL-0021,
+  docs/worktrees-and-branches-for-agents-2026-08-22.md). Not a per-invocation choice.
+- Clean commit point before touching files — always (user git rule, AGENTS.md).
+
+**E. How it is verified**
+- Gate depth — typecheck only → `npm run check` → browser/e2e gate.
+- Test discipline — TDD-first vs types-prove-it vs after-the-fact.
+- Review policy — none / fresh-eyes subagent / `/code-review` level / adversarial verify.
+
+**F. How it lands and is supervised**
+- Commit + push policy — per-milestone auto-commit and push, direct to `main` (repo
+  default) vs hold for approval vs PR.
+- Autonomy level — checkpoint frequency, ask-before-commit, permission mode.
+- Time-box — spike with a kill time vs run-to-done. **[option]** when the work is a spike.
+- Escape hatch — what a track does when the plan looks wrong; must be mechanical or it
+  never fires (`feature-dev` already defines this).
+- Plan-first vs just-build — approval gate before any code. **[option]**
+
+**The three (plus one) options the command should surface:** logged-or-new, parallel-or-serial,
+plan-first-or-just-build, and time-box when it is a spike. Everything else is defaulted from
+repo policy or derived from size. Note that plan-first-vs-just-build and time-box move the
+outcome more than inline-vs-subagent does, which is why they are options and that is not.
+
 ## Related
 
 - [.claude/skills/track-idea/SKILL.md] — sibling; start-work is the "already decided, doing
@@ -109,6 +160,9 @@ and only records the choice — otherwise a third overlapping process doc appear
 - [ ] `.claude/skills/start-work/SKILL.md` exists and appears in the session skill list
 - [ ] Starting work via /start-work produces a valid `in-progress` item with `## Done means`
       filled and the chosen approach recorded (`npm run backlog:regen` clean)
+- [ ] The command surfaces exactly the four options in the design space (logged-or-new,
+      parallel-or-serial, plan-first-or-just-build, time-box for spikes) and defaults or
+      derives every other dimension without asking
 - [ ] The approach branch actually hands off — parallel → `parallel-wave`, sequential →
       inline — with no duplicated planning steps of its own
 - [ ] `track-issue`'s "use /track-idea for feature" punt points at /start-work
