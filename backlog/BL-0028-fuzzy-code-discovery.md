@@ -86,10 +86,14 @@ BL-0019's split, so the query stays pure over `CodeIndex`.
 - [x] A tool call returns the repository's most-referenced exported declarations with
       signatures, trimmed to a token budget
 - [x] A scout subagent definition exists with the fixed report contract
-- [ ] The fuzzy-question benchmark runs: scout vs text-search baseline, reporting tokens and
-      hit rate
-- [ ] The `throttle`/`debounce`-shaped question (right answer under a different name) is
-      answered correctly by the scout on this repository
+- [x] The fuzzy-question benchmark runs: scout vs text-search baseline, reporting tokens and
+      hit rate — spec in [docs/scout-benchmark.md](../docs/scout-benchmark.md), first results
+      in [docs/scout-benchmark-run-2026-08-23.md](../docs/scout-benchmark-run-2026-08-23.md);
+      re-runnable with `/scout-benchmark`
+- [x] The `throttle`/`debounce`-shaped question (right answer under a different name) is
+      answered correctly by the scout on this repository — three of the five benchmark
+      questions are that shape and the scout answered all three; the text-search baselines
+      answered them too, so the run does not yet show the advantage the design note predicts
 
 ## Simplest possible implementation
 One pure function in `packages/mcp/src/query.ts`: count non-definition references per exported

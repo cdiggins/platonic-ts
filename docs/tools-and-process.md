@@ -230,6 +230,7 @@ The vendored ones, listed from the frontmatter of each `.claude/skills/*/SKILL.m
 | Skill | What it does |
 |---|---|
 | `parallel-wave` | Run a multi-subagent development wave on one shared checkout — a supervisor splits a feature into fenced parallel tracks, lands shared contract edits first, spawns one subagent per track, then integrates, gates with `npm run check`, and commits to main. |
+| `scout-benchmark` | Run the fuzzy code-discovery benchmark — five fixed questions with known answers, sent to the scout subagent and to two text-search baselines, then scored on hit rate, false leads, and cost into a dated results document. |
 | `start-work` | Take decided work from "we're doing this" to underway — log or adopt the backlog item, record the execution approach (sequential vs parallel) in its frontmatter, frame the outcome, scan for reuse, land contracts, then build inline or hand off to parallel-wave; review, ship with evidence, sweep debt. |
 | `track-backlog` | View and manage the backlog — show in-progress work, current priorities, sprint contents; triage untriaged items; promote ideas to ready; plan a sprint (big rocks + little rocks, parallel-safe). |
 | `track-idea` | Log a new idea into backlog/ with elaboration — assumptions, design decisions, related work links, approach brainstorm, and simplest implementation. |
