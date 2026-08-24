@@ -11,6 +11,7 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0005](BL-0005-gratify-trial.md) | Trial run on Gratify library | debt | p3 | L | med | repo | in-progress |  |
 | [BL-0010](BL-0010-init-retrofitter.md) | Build platonic init retrofitter for existing repos | idea | ? | ? | ? | repo | in-progress |  |
 | [BL-0021](BL-0021-vendor-parallel-wave-skill.md) | Vendor parallel-wave skill into repo, adapt, drop worktree framing | idea | ? | ? | low | repo | in-progress |  |
+| [BL-0031](BL-0031-ratchet-comment-scanner-derails.md) | Ratchet comment scanner derails on templates, missing 24% of comments | bug | p1 | S | low | packages/check | ready |  |
 | [BL-0017](BL-0017-zone-aware-platonic-score.md) | Make the platonic score zone-aware | problem | p2 | M | low | codemap | ready |  |
 | [BL-0024](BL-0024-metrics-rollup-glance-page.md) | Daily metrics rollup + KPI glance page; invocation table moves to second page | feature | p2 | M | low | dashboard | ready |  |
 | [BL-0018](BL-0018-dashboard-close-hang.md) | Dashboard close() can hang on leaked keep-alive sockets | bug | p3 | S | low | dashboard | ready |  |
@@ -22,3 +23,4 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0022](BL-0022-caveman-final-answer-clarity.md) | Drop caveman default — measured saving ~2%, override cost ~11% of turns | idea | ? | ? | low | repo | idea |  |
 | [BL-0025](BL-0025-docs-regen-marker-blocks.md) | docs:regen — generated marker-block inventories with staleness gate | feature | ? | ? | low | repo | idea |  |
 | [BL-0028](BL-0028-fuzzy-code-discovery.md) | Answer fuzzy availability questions with a ranked map and a scout agent | idea | ? | ? | ? | mcp | idea |  |
+| [BL-0032](BL-0032-src-folder-readme-index.md) | Per-src-folder README.md as a maintained file index | idea | ? | ? | ? | repo | idea |  |
