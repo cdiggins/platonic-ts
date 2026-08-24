@@ -9,9 +9,11 @@ import { spawn } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
 import { compareToBaseline, type RatchetCounts } from './ratchet.ts'
 import { scanRepo } from './scan.ts'
+import { checkIndexFolders, type IndexIssue } from './indexTable.ts'
+import { scanIndexFolders } from './indexScan.ts'
 
 // Names of validation steps that can be run independently.
-export type StepName = 'typecheck' | 'lint' | 'ratchet' | 'tests' | 'backlog'
+export type StepName = 'typecheck' | 'lint' | 'ratchet' | 'tests' | 'backlog' | 'index'
 
 // Outcome of a single validation step.
 export type CheckStepResult = {
@@ -116,12 +118,14 @@ const summarizeCommand = (name: StepName, ok: boolean, stdout: string, stderr: s
   return firstErrorLine(`${stdout}\n${stderr}`)
 }
 
-const commands: Readonly<Record<Exclude<StepName, 'ratchet'>, string>> = {
+const commands: Readonly<Record<Exclude<StepName, 'ratchet' | 'index'>, string>> = {
   typecheck: 'npx tsc --noEmit',
   lint: 'npx eslint .',
   tests: 'npx vitest run',
   backlog: 'npx tsx packages/backlog/src/main.ts validate',
 }
+
+const formatIndexIssue = (issue: IndexIssue): string => `${issue.folder}: ${issue.kind} — ${issue.detail}`
 
 const runStep = async (
   name: StepName,
@@ -139,6 +143,18 @@ const runStep = async (
     return { name, ok, durationMs, detail }
   }
 
+  if (name === 'index') {
+    const start = process.hrtime.bigint()
+    const checks = await scanIndexFolders(repoDir)
+    const issues = checkIndexFolders(checks)
+    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000
+    const ok = issues.length === 0
+    const detail = ok
+      ? `${checks.length} folder(s) ok`
+      : `${issues.length} issue(s): ${issues.map(formatIndexIssue).join('; ')}`
+    return { name, ok, durationMs, detail }
+  }
+
   const result = await runCommand(commands[name], repoDir)
   const ok = result.code === 0
   return {
@@ -149,7 +165,7 @@ const runStep = async (
   }
 }
 
-const defaultSteps: readonly StepName[] = ['typecheck', 'lint', 'ratchet', 'tests', 'backlog']
+const defaultSteps: readonly StepName[] = ['typecheck', 'lint', 'ratchet', 'tests', 'backlog', 'index']
 
 // Runs validation steps in order and stops at first failure.
 export const runCheck = async (options: {

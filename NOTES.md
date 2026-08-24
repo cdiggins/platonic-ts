@@ -836,3 +836,29 @@ direction so a swap fails loudly rather than corrupting files.
   Do not write golden tests against the full refactor list.
 - The catalogue costs about 4,800 tokens on every request, for 33 tools. A test holds a
   ceiling on it, because the cost is continuous and the benefit is per-use.
+
+## BL-0032 — src-folder INDEX.md split candidates
+
+Writing the first INDEX.md pass doubled as the design probe BL-0032 predicted: a file whose
+purpose resisted a two-line description without padding, flagged here rather than split.
+
+- `packages/codemap/src/io.ts` — mixes TypeScript program construction/caching, markdown
+  file collection, and the incremental session lifecycle (`openSession`/`updateSession`).
+- `packages/codemap/src/symbols.ts` — declaration extraction into `SymbolInfo` and
+  identifier-to-declaration reference resolution (`collectReferences`) are two largely
+  independent jobs sharing only `toRepoRelative`.
+- `packages/codeview/src/ui.ts` — already exempted from PS-024 (PS-056) as one cohesive
+  rendering artifact, but bundles CSS, a full client-side app, and page-shell copy.
+- `packages/dashboard/src/main.ts` — one composition root doing four separable jobs:
+  transcript/subagent/task-directory discovery, docs-directory IO, git-log correlation into
+  commit rows, and HTTP server startup/wiring.
+- `packages/hooks/src/io.ts` — mixes general hook-event logging IO (`readStdinPayload`,
+  `appendHookEvent`) with git-staging-guard IO (`stagedPaths`, `wideCommitAllowed`, `refuse`)
+  for two different sets of callers.
+- `packages/mcp/src/move.ts` — bundles file-rename import rewriting, a general import-editing
+  engine, and symbol-relocation planning (`moveSymbol`) under one file.
+- `packages/mcp/src/diagnostics.ts` — four separate tool implementations (`diagnostics`,
+  `codeFixes`, `applyCodeFix`, `organizeImports`) held together only by a "compiler's opinion"
+  framing.
+- `packages/mcp/src/review.ts` — `deleteSymbol` (safety-checked deletion) and `symbolDiff`
+  (before/after declaration diff) share a "reviewing a change" theme but unrelated mechanisms.

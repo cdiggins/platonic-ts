@@ -114,13 +114,13 @@ packages) and must NOT build a second generator alongside BL-0025's.
 
 ## Done means
 
-- [ ] Every `packages/*/src` folder has an `INDEX.md` that opens with the folder's own
+- [x] Every `packages/*/src` folder has an `INDEX.md` that opens with the folder's own
       one-or-two-line purpose and lists every file in it with a one-or-two-line purpose.
-- [ ] `npm run check` fails when a source file is missing from its folder INDEX.md, listed
+- [x] `npm run check` fails when a source file is missing from its folder INDEX.md, listed
       but deleted, or has an empty description.
 - [ ] Regenerating twice produces byte-identical output; hand-written description text
       survives regen.
-- [ ] AGENTS.md tells agents to read the folder INDEX.md before working in a package.
+- [x] AGENTS.md tells agents to read the folder INDEX.md before working in a package.
 
 ## Simplest possible implementation
 
