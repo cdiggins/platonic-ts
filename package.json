@@ -20,7 +20,8 @@
     "clones": "tsx packages/codemap/src/main.ts clones",
     "transcripts": "tsx packages/transcripts/src/main.ts",
     "init": "tsx packages/init/src/main.ts",
-    "mcp": "tsx packages/mcp/src/main.ts"
+    "mcp": "tsx packages/mcp/src/main.ts",
+    "hooks:install": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

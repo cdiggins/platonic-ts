@@ -36,8 +36,11 @@ Ratchet counts escape hatches (`any`, `as`, `!`, `@ts-` and eslint-disable comme
 
 Commit to `main` with pathspec (`git commit -- <paths>`); push only after a verified
 milestone (`git pull --rebase` first — parallel agents collide). No branches, no worktrees.
-A `PreToolUse` hook (`.claude/hooks/guard-git-staging.mjs`, wired in `.claude/settings.json`)
-blocks `git add -A`, bare `git add`, `git commit -a`, and pathspec-less `git commit`.
+A commit may contain only files you edited yourself, so never stage broadly: no `git add -A`,
+no bare `git add`, no `git commit -a`. Two guards enforce this and will refuse the command with
+the correct one to run instead — a `PreToolUse` hook on the Bash and PowerShell tools, and a
+git `pre-commit` hook enabled per clone with `npm run hooks:install`. Both live in
+`packages/hooks`.
 Pure functional style, zero runtime deps, relative imports across packages.
 Full rules in [docs/style-guide.md](docs/style-guide.md); breaking one requires PS-056.
 

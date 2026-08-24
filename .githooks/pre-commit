@@ -1,0 +1,5 @@
+#!/bin/sh
+# Enabled per clone with `npm run hooks:install` (sets core.hooksPath to this directory).
+# Missing dependencies must not block committing, so a missing tsx passes the commit through.
+[ -x ./node_modules/.bin/tsx ] || exit 0
+exec ./node_modules/.bin/tsx packages/hooks/src/preCommit.ts
