@@ -20,15 +20,22 @@ feature requires rediscovering what the docs would have said. A slow test suite 
 every future change pays its runtime. A wrong abstraction is debt even when every line of it is
 clean. An undocumented decision is debt the day someone has to re-litigate it.
 
-It is narrower because it excludes things that merely offend. Ugly code in a module nothing will
-ever touch again slows nothing down and is therefore not debt, however much it itches. A
-suppressed type error in a dead corner costs less than the afternoon spent fixing it. The
-definition forces the question "slower at what, for whom, when?" — and if there is no credible
-answer, there is no debt, only distaste.
+It is narrower because it demands a mechanism. The definition forces the question "slower at
+what, for whom, when?" — and the answer has to name a real cost, not an aesthetic one. But the
+bar is lower than it first appears, because being *read* is enough to incur cost. Code does not
+have to be modified to slow anyone down; it only has to be encountered. Dead code raises a
+question — is this used? can I ignore it? — every time someone finds it in a search result.
+Hard-to-understand code makes every reader stop and ask what it does, and the answers are
+re-derived each time because confusion leaves no residue. Both consume attention and context that
+the actual work needed. So the honest exclusions are rare: only code that is never modified *and*
+never read — never surfaced by a search, never loaded to understand a neighbor — sits at zero
+interest, and little code in a living repository is that isolated.
 
 The definition also fixes the unit of account. Debt is measured in future velocity lost, so the
-interest rate on any given debt is proportional to how often future work passes through it. Debt
-on the main path compounds; debt in a leaf module sits at zero interest indefinitely.
+interest rate on any given debt is proportional to how often future work passes through it —
+where "passes through" includes reading, searching, and loading into context, not just editing.
+Debt on the main path compounds; debt in a corner nothing reads sits near zero interest, which
+is a status almost nothing keeps for long.
 
 ---
 
