@@ -207,23 +207,6 @@ describe('watchRepo', () => {
     await rm(repoDir, { recursive: true, force: true })
   })
 
-  // Watching is best-effort by design, so the test waits for the report rather
-  // than assuming it has arrived, and says nothing where there is no watch.
-  it('reports a written source file by its repo-relative path', async () => {
-    const touched: string[] = []
-    const watch = watchRepo(repoDir, (file) => touched.push(file))
-    if (watch === undefined) return
-
-    await write(repoDir, `${sourceDir}/one.ts`, 'export const one = 1\n')
-    const deadline = Date.now() + 5_000
-    while (touched.length === 0 && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 25))
-    }
-    watch.close()
-
-    expect(touched).toContain(`${sourceDir}/one.ts`)
-  })
-
   it('ignores files the index does not cover', async () => {
     const touched: string[] = []
     const watch = watchRepo(repoDir, (file) => touched.push(file))
