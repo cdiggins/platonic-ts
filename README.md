@@ -6,34 +6,8 @@ Built for one person working with coding agents — Claude Code first, other age
 
 ## Status
 
-Early prototype. Started August 22nd, 2026. Implemented so far: an npm-workspaces
-monorepo (`packages/core`, `transcripts`, `backlog`, `dashboard`, `check`) built by parallel
-fenced agent waves (process in [CONTRACTS.md](CONTRACTS.md), findings in [NOTES.md](NOTES.md)),
-a functional-subset ESLint configuration, and a live agent-observability dashboard
-(`npm run dashboard`, port 4747) that tails Claude Code session transcripts to show agents,
-models, token rates, the backlog (`backlog/`), and documents in real time. The dashboard covers
-agent activity and logged work only; browsing and scoring the source code is a separate tool's
-job, and the boundary is explained in
-[Tools, Skills, and Process](docs/tools-and-process.md#scope-what-the-dashboard-is-not). That
-separate tool now exists: a code overview browser (`npm run codeview`, port 4848) that indexes
-the repository's own TypeScript with the compiler API and serves syntax-coloured source with
-go-to-definition, find-references, rendered markdown, per-function and per-folder quality
-metrics, and a feedback box that files backlog items. A session-corpus analyzer
-(`npm run transcripts`) reports where tokens went across a project's Claude Code transcripts —
-context composition, per-tool and per-file cost, skill usage — documented in
-[Tools, Skills, and Process](docs/tools-and-process.md#npm-run-transcripts--session-corpus-analyzer).
-There is also an MCP server (`npm run mcp`, registered in `.mcp.json`) that gives an agent nine
-tools for the mechanical work — file outlines, one declaration at a time, type-checked
-find-references, rename across the repository, editing addressed by declaration name rather than
-by matching surrounding text, and the check gate. Measured against the general-purpose read,
-search, and edit tools on the same questions, it puts 43% to 96% fewer tokens into the agent's
-context, and answers two of those questions correctly where text search does not
-([design note and measurements](docs/mcp-server-2026-08-23.md)).
-The [Documents](#documents) section indexes
-the design notes. The tools, skills, and multi-agent process are documented for humans in
-[Tools, Skills, and Process](docs/tools-and-process.md). The backlog now follows the
-[WorkQuarry](https://github.com/ara3d/workquarry) issue-tracking schema, implemented natively
-in TypeScript — see the [adoption ADR](decisions/2026-08-22-adopt-workquarry-format.md).
+Early prototype, started August 22nd, 2026. What is built so far, and what is still a design
+note, is in [Status](docs/status.md).
 
 ## Packages and commands
 
@@ -220,6 +194,7 @@ Early design notes. Everything here is a first draft, and nothing is implemented
 * [An MCP Server for the Mechanical Half of Coding](docs/mcp-server-2026-08-23.md) — what the nine tools do, why text search and text-matching edits are both expensive and wrong, and the measured token cost of each against the conventional tool. (Implemented — unlike the design notes above.)
 * [Questions to Ask Before Writing Code](docs/pre-coding-questions-2026-08-23.md) — what pre-coding questions are for, which ones do not earn their cost, and a three-tier checklist an agent runs against itself, with the triggers that pick the tier.
 * [Questions to Ask After Writing Code](docs/post-coding-questions-2026-08-23.md) — the same treatment at the other end: seven phases from the gate to after the commit, a disposal table that says where every finding goes, and a stop rule so the review finishes.
+* [Status](docs/status.md) — what is implemented today: the packages, the dashboard, the code browser, the transcript analyzer, and the MCP server, with what has been measured and what has not.
 
 ## History
 
