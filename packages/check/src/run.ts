@@ -1,5 +1,5 @@
 // The `platonic check` runner: typecheck -> lint -> ratchet -> tests -> backlog ids ->
-// INDEX.md completeness -> generated doc blocks, stopping at first failure. Subprocess steps use spawn with
+// INDEX.md completeness -> import boundaries -> generated doc blocks, stopping at first failure. Subprocess steps use spawn with
 // node:child_process and shell:true (Windows needs a shell to resolve npx); timing uses
 // process.hrtime.bigint() rather than Date.now() (project convention:
 // ambient Date.now() is banned outside composition roots — see
@@ -11,9 +11,19 @@ import { compareToBaseline, type RatchetCounts } from './ratchet.ts'
 import { scanRepo } from './scan.ts'
 import { checkIndexFolders, type IndexIssue } from './indexTable.ts'
 import { scanIndexFolders } from './indexScan.ts'
+import { findBoundaryViolations, forbiddenEdges, type BoundaryIssue } from './boundary.ts'
+import { collectBoundaryFiles } from './boundaryScan.ts'
 
 // Names of validation steps that can be run independently.
-export type StepName = 'typecheck' | 'lint' | 'ratchet' | 'tests' | 'backlog' | 'index' | 'docs'
+export type StepName =
+  | 'typecheck'
+  | 'lint'
+  | 'ratchet'
+  | 'tests'
+  | 'backlog'
+  | 'index'
+  | 'boundary'
+  | 'docs'
 
 // Outcome of a single validation step.
 export type CheckStepResult = {
@@ -118,7 +128,7 @@ const summarizeCommand = (name: StepName, ok: boolean, stdout: string, stderr: s
   return firstErrorLine(`${stdout}\n${stderr}`)
 }
 
-const commands: Readonly<Record<Exclude<StepName, 'ratchet' | 'index'>, string>> = {
+const commands: Readonly<Record<Exclude<StepName, 'ratchet' | 'index' | 'boundary'>, string>> = {
   typecheck: 'npx tsc --noEmit',
   lint: 'npx eslint .',
   tests: 'npx vitest run',
@@ -127,6 +137,9 @@ const commands: Readonly<Record<Exclude<StepName, 'ratchet' | 'index'>, string>>
 }
 
 const formatIndexIssue = (issue: IndexIssue): string => `${issue.folder}: ${issue.kind} — ${issue.detail}`
+
+const formatBoundaryIssue = (issue: BoundaryIssue): string =>
+  `${issue.file}:${issue.line} imports '${issue.specifier}' (${issue.rule.from} must not import ${issue.rule.to})`
 
 const runStep = async (
   name: StepName,
@@ -156,6 +169,18 @@ const runStep = async (
     return { name, ok, durationMs, detail }
   }
 
+  if (name === 'boundary') {
+    const start = process.hrtime.bigint()
+    const files = await collectBoundaryFiles(repoDir, forbiddenEdges)
+    const issues = findBoundaryViolations(files, forbiddenEdges)
+    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000
+    const ok = issues.length === 0
+    const detail = ok
+      ? `${files.length} file(s) ok`
+      : `${issues.length} issue(s): ${issues.map(formatBoundaryIssue).join('; ')}`
+    return { name, ok, durationMs, detail }
+  }
+
   const result = await runCommand(commands[name], repoDir)
   const ok = result.code === 0
   return {
@@ -173,6 +198,7 @@ const defaultSteps: readonly StepName[] = [
   'tests',
   'backlog',
   'index',
+  'boundary',
   'docs',
 ]
 
