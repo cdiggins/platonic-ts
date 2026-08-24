@@ -37,6 +37,8 @@ Promotion = `idea` → `ready` ("an agent may pick this up"). Before flipping:
 - `feature`/`debt`/`bug` REQUIRE a `## Done means` section (2–5 verifiable statements) to
   exist in the body first — add it if missing before promoting
 - `problem` needs no acceptance criteria (it closes with an ADR)
+`/start-work` bypasses this path for decided work by requiring the same `## Done means`
+section at creation; the two gates must stay in agreement.
 Edit the item's `status:`, `priority:`, `effort:`, `risk:` fields, then
 `npm run backlog:regen`.
 

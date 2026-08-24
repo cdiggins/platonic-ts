@@ -2,10 +2,11 @@
 id: BL-0020
 title: Add start-work command that records the execution approach
 type: feature
-status: idea
-priority: "?"
+status: in-progress
+priority: p2
 effort: M
 risk: low
+approach: sequential
 area: repo
 sprint:
 created: 2026-08-23
@@ -180,15 +181,15 @@ prose section would leave the data unqueryable and the measurement impossible.
 
 ## Done means
 
-- [ ] `.claude/skills/start-work/SKILL.md` exists in-repo, absorbing `feature-dev`'s
+- [x] `.claude/skills/start-work/SKILL.md` exists in-repo, absorbing `feature-dev`'s
       framing/sizing/shipping content, adapted to this repo (gate, paths, no worktrees)
-- [ ] `approach: sequential | parallel | undecided` parses in `packages/backlog`, defaults to
+- [x] `approach: sequential | parallel | undecided` parses in `packages/backlog`, defaults to
       `undecided` when absent, is typed in `packages/core`, and is covered by tests
-- [ ] `/start-work` creates the item when one is missing, with `## Done means` filled, and
+- [x] `/start-work` creates the item when one is missing, with `## Done means` filled, and
       records the approach in frontmatter
-- [ ] Parallel work hands off to `.claude/skills/parallel-wave/SKILL.md` with no wave
+- [x] Parallel work hands off to `.claude/skills/parallel-wave/SKILL.md` with no wave
       mechanics restated in `/start-work`
-- [ ] `track-issue`'s feature punt points at `/start-work`, and `track-backlog` agrees with
+- [x] `track-issue`'s feature punt points at `/start-work`, and `track-backlog` agrees with
       it on the `## Done means` requirement
 - [ ] `npm run check` green
 

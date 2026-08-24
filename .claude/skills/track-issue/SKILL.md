@@ -7,7 +7,8 @@ argument-hint: <the issue, in a phrase or paragraph>
 # track-issue — capture and elaborate a concrete issue
 
 Sibling of `/track-idea`, for defects and liabilities rather than opportunities:
-`type: bug | debt | problem | retire` (use `/track-idea` for `idea`/`feature`). You create
+`type: bug | debt | problem | retire` (use `/track-idea` for undecided ideas, `/start-work`
+for a `feature` the user has already decided to build). You create
 and edit `backlog/*.md` item files directly (closed ones live in `backlog/archive/`);
 investigation is yours. After creating or
 changing any item, run `npm run backlog:regen` to rebuild `backlog/BACKLOG.md` and

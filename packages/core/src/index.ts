@@ -83,6 +83,12 @@ export type BacklogEffort = 'S' | 'M' | 'L' | '?'
 // Assessed implementation risk for a backlog item.
 export type BacklogRisk = 'low' | 'med' | 'high' | '?'
 
+// How the work is executed once started: one agent in sequence, a fenced
+// parallel wave, or not yet chosen. Recorded so approach can later be
+// correlated with outcomes; 'undecided' is the default for items filed
+// before a start.
+export type BacklogApproach = 'sequential' | 'parallel' | 'undecided'
+
 // A single item from the project backlog, parsed from frontmatter.
 export type BacklogItem = {
   readonly id: string
@@ -92,6 +98,7 @@ export type BacklogItem = {
   readonly priority: BacklogPriority
   readonly effort: BacklogEffort
   readonly risk: BacklogRisk
+  readonly approach: BacklogApproach
   readonly area: string | undefined
   readonly sprint: string | undefined
   readonly owner: string | undefined

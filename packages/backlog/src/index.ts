@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { basename } from 'node:path'
 import type {
+  BacklogApproach,
   BacklogEffort,
   BacklogItem,
   BacklogPriority,
@@ -25,6 +26,7 @@ const validTypes: readonly BacklogType[] = ['feature', 'debt', 'bug', 'idea', 'p
 const validPriorities: readonly BacklogPriority[] = ['p1', 'p2', 'p3', '?']
 const validEfforts: readonly BacklogEffort[] = ['S', 'M', 'L', '?']
 const validRisks: readonly BacklogRisk[] = ['low', 'med', 'high', '?']
+const validApproaches: readonly BacklogApproach[] = ['sequential', 'parallel', 'undecided']
 
 const isOneOf = <T extends string>(values: readonly T[], v: unknown): v is T =>
   typeof v === 'string' && values.some((candidate) => candidate === v)
@@ -63,6 +65,11 @@ const parseEffort = (raw: string | undefined): BacklogEffort => {
 const parseRisk = (raw: string | undefined): BacklogRisk => {
   const unquoted = raw?.replace(/^"(.*)"$/, '$1')
   return isOneOf(validRisks, unquoted) ? unquoted : '?'
+}
+
+const parseApproach = (raw: string | undefined): BacklogApproach => {
+  const unquoted = raw?.replace(/^"(.*)"$/, '$1')
+  return isOneOf(validApproaches, unquoted) ? unquoted : 'undecided'
 }
 
 const parseLinks = (raw: string | undefined): readonly string[] => {
@@ -105,6 +112,7 @@ export const parseBacklogFile = (file: string, content: string): BacklogItem | u
     priority: parsePriority(fm.get('priority')),
     effort: parseEffort(fm.get('effort')),
     risk: parseRisk(fm.get('risk')),
+    approach: parseApproach(fm.get('approach')),
     area: emptyToUndefined(fm.get('area')),
     sprint: emptyToUndefined(fm.get('sprint')),
     owner: emptyToUndefined(fm.get('owner')),
@@ -174,6 +182,7 @@ export const renderBacklogItem = (item: BacklogItem): string => {
     `priority: ${item.priority}`,
     `effort: ${item.effort}`,
     `risk: ${item.risk}`,
+    `approach: ${item.approach}`,
     `area: ${item.area ?? ''}`,
     `sprint: ${item.sprint ?? ''}`,
     ...(item.owner !== undefined ? [`owner: ${item.owner}`] : []),

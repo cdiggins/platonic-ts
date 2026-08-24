@@ -20,6 +20,7 @@ const fullItem: BacklogItem = {
   priority: 'p1',
   effort: 'M',
   risk: 'low',
+  approach: 'sequential',
   area: 'core',
   sprint: '2026-01-A',
   owner: 'alice',
@@ -40,6 +41,7 @@ status: ready
 priority: p1
 effort: M
 risk: low
+approach: sequential
 area: core
 sprint: 2026-01-A
 owner: alice
@@ -108,6 +110,24 @@ Body`
     expect(item?.effort).toBe('?')
     expect(item?.risk).toBe('?')
     expect(item?.type).toBe('idea')
+  })
+
+  it('defaults approach to undecided when missing or invalid', () => {
+    const missing = parseBacklogFile('test.md', `---\nid: core-001\ntitle: Test\n---\nBody`)
+    expect(missing?.approach).toBe('undecided')
+    const invalid = parseBacklogFile(
+      'test.md',
+      `---\nid: core-001\ntitle: Test\napproach: bogus\n---\nBody`,
+    )
+    expect(invalid?.approach).toBe('undecided')
+  })
+
+  it('round-trips every valid approach value', () => {
+    const approaches = ['sequential', 'parallel', 'undecided'] as const
+    for (const approach of approaches) {
+      const rendered = renderBacklogItem({ ...fullItem, approach })
+      expect(parseBacklogFile('test.md', rendered)?.approach).toBe(approach)
+    }
   })
 
   it('accepts all valid WorkQuarry status values', () => {
@@ -243,6 +263,7 @@ Old body.`
         priority: 'p2',
         effort: '?',
         risk: '?',
+        approach: 'undecided',
         area: undefined,
         sprint: undefined,
         owner: 'bob',
@@ -265,6 +286,7 @@ describe('renderBacklogItem', () => {
     expect(md).toContain('priority: p1')
     expect(md).toContain('effort: M')
     expect(md).toContain('risk: low')
+    expect(md).toContain('approach: sequential')
     expect(md).toContain('area: core')
     expect(md).toContain('sprint: 2026-01-A')
     expect(md).toContain('links: [docs/notes.md, core-002]')
@@ -282,6 +304,7 @@ describe('renderBacklogItem', () => {
       priority: '?',
       effort: '?',
       risk: '?',
+      approach: 'undecided',
       area: undefined,
       sprint: undefined,
       owner: undefined,

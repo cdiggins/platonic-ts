@@ -54,6 +54,7 @@ const snapshot: DashboardSnapshot = {
       priority: 'p1',
       effort: 'M',
       risk: 'low',
+      approach: 'undecided',
       area: 'core',
       sprint: undefined,
       owner: 'S',

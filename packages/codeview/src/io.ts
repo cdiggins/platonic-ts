@@ -68,6 +68,7 @@ export const appendFeedbackItem = async (
     priority: '?',
     effort: '?',
     risk: '?',
+    approach: 'undecided',
     area: 'repo',
     sprint: undefined,
     owner: undefined,
