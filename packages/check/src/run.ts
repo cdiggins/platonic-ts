@@ -1,5 +1,7 @@
 // The `platonic check` runner: typecheck -> lint -> ratchet -> tests -> backlog ids ->
-// INDEX.md completeness -> import boundaries -> generated doc blocks, stopping at first failure. Subprocess steps use spawn with
+// import boundaries -> generated doc blocks, stopping at the first failure.
+//
+// Subprocess steps use spawn with
 // node:child_process and shell:true (Windows needs a shell to resolve npx); timing uses
 // process.hrtime.bigint() rather than Date.now() (project convention:
 // ambient Date.now() is banned outside composition roots — see
@@ -9,8 +11,6 @@ import { spawn } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
 import { compareToBaseline, type RatchetCounts } from './ratchet.ts'
 import { scanRepo } from './scan.ts'
-import { checkIndexFolders, type IndexIssue } from './indexTable.ts'
-import { scanIndexFolders } from './indexScan.ts'
 import { findBoundaryViolations, forbiddenEdges, type BoundaryIssue } from './boundary.ts'
 import { collectBoundaryFiles } from './boundaryScan.ts'
 
@@ -21,7 +21,6 @@ export type StepName =
   | 'ratchet'
   | 'tests'
   | 'backlog'
-  | 'index'
   | 'boundary'
   | 'docs'
 
@@ -128,15 +127,13 @@ const summarizeCommand = (name: StepName, ok: boolean, stdout: string, stderr: s
   return firstErrorLine(`${stdout}\n${stderr}`)
 }
 
-const commands: Readonly<Record<Exclude<StepName, 'ratchet' | 'index' | 'boundary'>, string>> = {
+const commands: Readonly<Record<Exclude<StepName, 'ratchet' | 'boundary'>, string>> = {
   typecheck: 'npx tsc --noEmit',
   lint: 'npx eslint .',
   tests: 'npx vitest run',
   backlog: 'npx tsx packages/backlog/src/main.ts validate',
   docs: 'npx tsx packages/backlog/src/main.ts docs-regen --check',
 }
-
-const formatIndexIssue = (issue: IndexIssue): string => `${issue.folder}: ${issue.kind} — ${issue.detail}`
 
 const formatBoundaryIssue = (issue: BoundaryIssue): string =>
   `${issue.file}:${issue.line} imports '${issue.specifier}' (${issue.rule.from} must not import ${issue.rule.to})`
@@ -154,18 +151,6 @@ const runStep = async (
     const ok = result.verdict !== 'regressed'
     const detail =
       result.verdict === 'regressed' ? `regressed: ${result.regressions.join(', ')}` : result.verdict
-    return { name, ok, durationMs, detail }
-  }
-
-  if (name === 'index') {
-    const start = process.hrtime.bigint()
-    const checks = await scanIndexFolders(repoDir)
-    const issues = checkIndexFolders(checks)
-    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000
-    const ok = issues.length === 0
-    const detail = ok
-      ? `${checks.length} folder(s) ok`
-      : `${issues.length} issue(s): ${issues.map(formatIndexIssue).join('; ')}`
     return { name, ok, durationMs, detail }
   }
 
@@ -197,7 +182,6 @@ const defaultSteps: readonly StepName[] = [
   'ratchet',
   'tests',
   'backlog',
-  'index',
   'boundary',
   'docs',
 ]

@@ -19,7 +19,7 @@ are hand-written.
 | `npm run typecheck` | Type-checks every package with `tsc --noEmit` under the repository's strict compiler settings. |
 | `npm run test` | Runs the whole vitest suite once. |
 | `npm run lint` | Runs ESLint with the functional-subset configuration. |
-| `npm run check` | The gate: typecheck, lint, ratchet, tests, backlog ids, INDEX.md completeness, and doc-block freshness, stopping at the first failure. |
+| `npm run check` | The gate: typecheck, lint, ratchet, tests, backlog ids, import boundaries, and doc-block freshness, stopping at the first failure. |
 | `npm run dashboard` | Starts the agent observability server on http://localhost:4747. |
 | `npm run backlog:regen` | Rebuilds the generated backlog/BACKLOG.md and backlog/DONE.md views from item frontmatter. |
 | `npm run backlog:archive` | Moves done and dropped backlog items into backlog/archive/. |
@@ -32,7 +32,7 @@ are hand-written.
 | `npm run init` | Plans and applies this repository's strictness gates in another repository. |
 | `npm run mcp` | Starts the MCP server over the code index on stdio. |
 | `npm run hooks:install` | Points this clone's git hooks at .githooks so the pre-commit staging guard runs. |
-| `npm run docs:regen` | Rewrites the generated inventory blocks in README.md and docs/tools-and-process.md; `-- --check` reports staleness instead. |
+| `npm run docs:regen` | Rewrites every generated block — the inventory tables in README.md and docs/tools-and-process.md, and each `packages/*/src/INDEX.md` file table; `-- --check` reports staleness instead. |
 <!-- END GENERATED -->
 
 ### `npm run check` — the gate
@@ -52,10 +52,12 @@ The single definition of green. It runs these steps in order and stops at the fi
 4. **Tests** — `vitest run` across all packages.
 5. **Backlog ids** — every `BL-NNNN` id is claimed exactly once, and every item file's name
    matches the id in its frontmatter.
-6. **Index** — every `packages/*/src` folder carries an `INDEX.md` that lists each of its
-   files with a non-empty description.
-7. **Docs** — the generated marker blocks in this file and in the README match what
-   `npm run docs:regen` would write.
+6. **Boundary** — no file imports across a dependency edge the repository forbids (the rules
+   are `forbiddenEdges` in `packages/check/src/boundary.ts`).
+7. **Docs** — the generated marker blocks in this file, in the README, and in every
+   `packages/*/src/INDEX.md` match what `npm run docs:regen` would write. A source file with
+   no leading `//` purpose comment (PS-057) fails here too: its INDEX.md row has nothing to
+   harvest, so the table cannot be regenerated at all.
 
 Each step also runs on its own: `npm run typecheck`, `npm run lint`, `npm run test`. The
 implementation lives in `packages/check` — a pure per-file scanner (`countEscapeHatches`,

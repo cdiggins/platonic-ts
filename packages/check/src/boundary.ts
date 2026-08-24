@@ -1,9 +1,10 @@
 // Pure import-boundary check: flags import specifiers in one package's files that resolve
-// into a package it must not depend on. Enforces the ruling in
-// docs/decisions/2026-08-23-index-md-gate-owned-by-check.md: `packages/check` must never
-// import from `packages/codemap` (codemap already imports check/src/scan.ts, so the reverse
-// edge is a package-level cycle). IO (walking packages/check for files) lives in
+// into a package it must not depend on. IO (walking a rule's `from` directory) lives in
 // boundaryScan.ts.
+//
+// The edge it currently holds: `packages/check` must never import from `packages/codemap`,
+// because codemap already imports check/src/scan.ts, so the reverse edge would be a
+// package-level cycle. See docs/decisions/2026-08-23-index-md-generated-by-docsgen.md.
 import { posix } from 'node:path'
 
 // One source file to check: a repo-relative posix path and its full text.

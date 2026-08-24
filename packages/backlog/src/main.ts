@@ -1,4 +1,6 @@
-// Composition root / CLI entry for the backlog.
+// Composition root / CLI entry for the backlog: item ids, the generated backlog views, and
+// the generated documentation blocks.
+//
 //   npx tsx packages/backlog/src/main.ts regen
 //   npx tsx packages/backlog/src/main.ts next-id <slug> [<slug> ...]
 //   npx tsx packages/backlog/src/main.ts validate
@@ -125,6 +127,7 @@ const docsRegen = async (args: readonly string[]): Promise<void> => {
   const report = await regenerateDocs(repoDir, mode)
 
   for (const missing of report.missing) console.error(`no description for ${missing}`)
+  for (const problem of report.indexProblems) console.error(problem)
   for (const file of report.files) {
     for (const name of file.unknown) console.error(`${file.file}: no generator for block "${name}"`)
     if (mode === 'check' && file.stale.length > 0) {

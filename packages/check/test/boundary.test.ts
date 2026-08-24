@@ -17,7 +17,6 @@ describe('findBoundaryViolations', () => {
         source: [
           "import { spawn } from 'node:child_process'",
           "import { scanRepo } from './scan.ts'",
-          "import { checkIndexFolders } from './indexTable.ts'",
         ].join('\n'),
       },
     ]

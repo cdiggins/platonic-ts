@@ -1,3 +1,5 @@
+// Parses one backlog markdown file's frontmatter into a `BacklogItem` (tolerating the
+// pre-WorkQuarry schema), loads the full backlog from disk, and renders the generated views.
 import { readdir, readFile } from 'node:fs/promises'
 import { basename } from 'node:path'
 import type {

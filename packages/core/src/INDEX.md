@@ -3,6 +3,8 @@
 Shared contract types and small pure helpers for the observability layer (transcripts,
 dashboard, codemap, codeview). Supervisor-owned — see the file's own header before editing.
 
+<!-- BEGIN GENERATED: src-index (npm run docs:regen) -->
 | File | Purpose |
 |---|---|
-| `index.ts` | Defines every cross-package type (`AgentActivity`, `BacklogItem`, `CodeIndex`, `SymbolInfo`, etc.) plus three pure helpers (`splitJsonlChunk`, `outputTokensPerMinute`, `truncate`). The one place shared shapes are declared, so packages agree on them without importing each other. |
+| `index.ts` | Shared contract types and pure helpers for the platonic-ts observability layer. Supervisor-owned: tracks read this file, request changes via NOTES.md, never edit it. |
+<!-- END GENERATED -->

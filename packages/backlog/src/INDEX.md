@@ -4,11 +4,15 @@ Parses, renders, and loads backlog markdown items from `backlog/`, and allocates
 validates their `BL-NNNN` ids. It also owns the second regenerate-a-view job in the repo:
 the generated inventory blocks inside README.md and docs/tools-and-process.md.
 
+<!-- BEGIN GENERATED: src-index (npm run docs:regen) -->
 | File | Purpose |
 |---|---|
-| `docsgen.ts` | Pure half of `npm run docs:regen`: parses `<!-- BEGIN GENERATED: <name> … -->` marker blocks, renders the npm-script, package, and skill inventory tables, splices them back in idempotently, and reports which blocks are stale. |
-| `docsgenIo.ts` | Filesystem half of `npm run docs:regen`: reads the root and per-package `package.json` manifests and `.claude/skills/*/SKILL.md` frontmatter, then rewrites the target documents (`write`) or reports their stale blocks (`check`). |
-| `ids.ts` | Pure id logic: formats/parses `BL-NNNN` strings and marker filenames, computes the first free number from a set of used numbers, and validates a set of backlog files against their `.ids/` markers (duplicate numbers, missing markers, id/filename mismatches). |
-| `index.ts` | Parses one backlog markdown file's frontmatter (with tolerant migration from the pre-WorkQuarry schema) into a `BacklogItem`, loads and sorts the full backlog (live plus archived) from disk, and renders items and the generated `BACKLOG.md`/`DONE.md` views. |
-| `io.ts` | Filesystem half of id allocation: claims a backlog id with an exclusive-create marker file in `backlog/.ids/` so concurrent claims never collide, backfills markers for pre-allocator items, and reads file/marker listings for validation. |
-| `main.ts` | CLI entry (`npx tsx packages/backlog/src/main.ts`) — dispatches `regen`, `next-id`, `validate`, `backfill-markers`, and `archive` (which moves closed items into `backlog/archive/` with `git mv`). |
+| `docsgen.ts` | Pure half of `npm run docs:regen`: renders the inventory tables (npm scripts, workspace packages, vendored skills) and splices them into a document's generated marker blocks. |
+| `docsgenIo.ts` | Filesystem half of `npm run docs:regen`: reads the inventory sources (root and package manifests, vendored SKILL.md frontmatter) and rewrites or audits the documents' blocks. |
+| `ids.ts` | Backlog id allocation — the pure half: how a number becomes a name, which numbers a set of filenames already uses, and what makes an allocation invalid. The concurrency-safe claim itself is filesystem work and lives in `io.ts`; this module is what that claim is reasoning about. |
+| `index.ts` | Parses one backlog markdown file's frontmatter into a `BacklogItem` (tolerating the pre-WorkQuarry schema), loads the full backlog from disk, and renders the generated views. |
+| `indexdoc.ts` | Pure half of the src-folder INDEX.md generator (BL-0032): harvests each source file's PS-057 purpose comment and each subfolder's INDEX.md opening statement into one table. |
+| `indexdocIo.ts` | Filesystem half of the src-folder INDEX.md generator: finds every folder that must carry an INDEX.md and reads the purpose text each of its entries publishes, for indexdoc.ts to render. |
+| `io.ts` | Root zone: the filesystem half of backlog id allocation. |
+| `main.ts` | Composition root / CLI entry for the backlog: item ids, the generated backlog views, and the generated documentation blocks. |
+<!-- END GENERATED -->

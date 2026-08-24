@@ -1,7 +1,7 @@
 {
   "name": "@platonic/backlog",
   "version": "0.0.1",
-  "description": "Parses, renders, and loads the markdown work items in backlog/, and allocates and validates their BL-NNNN ids.",
+  "description": "Parses, renders, and loads the markdown work items in backlog/, allocates and validates their BL-NNNN ids, and owns the repository's documentation generator (npm run docs:regen).",
   "private": true,
   "type": "module",
   "exports": {

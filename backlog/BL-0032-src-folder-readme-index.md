@@ -2,14 +2,14 @@
 id: BL-0032
 title: Per-src-folder INDEX.md as a maintained file index
 type: idea
-status: idea
+status: done
 priority: "?"
 effort: "?"
 risk: "?"
 area: repo
 sprint:
 created: 2026-08-23
-closed:
+closed: 2026-08-23
 links: [backlog/BL-0025-docs-regen-marker-blocks.md, docs/small-modules-for-agents-2026-08-23.md, packages/codemap/src, packages/hooks/README.md]
 ---
 
@@ -72,9 +72,10 @@ convention-maintained, or it rots.
 - [BL-0025] (done) — the mechanism exists: `packages/backlog/src/docsgen.ts` parses and
   splices `<!-- BEGIN GENERATED: <name> -->` blocks, `docsgenIo.ts` reads the sources and
   writes or audits the files, and the `docs` step of `npm run check` fails on staleness.
-  This item is plausibly a second consumer of that generator, not new machinery — INDEX.md
-  files stay hand-written until it is implemented, enforced only for completeness by the
-  `index` check step (`packages/check/src/indexTable.ts`).
+  This item became a second consumer of that generator rather than new machinery:
+  `indexdoc.ts` + `indexdocIo.ts` harvest the descriptions and `regenerateDocs` splices them,
+  and the standalone `index` check step in `packages/check` was retired — see
+  docs/decisions/2026-08-23-index-md-generated-by-docsgen.md.
 - docs/small-modules-for-agents-2026-08-23.md §7.5 — proposes PS-064 (package README with
   fixed sections, generated Contract block). This idea extends it downward: file-level
   index, not just export-level contract. §7.7 (PS-065, termination conditions) shares the
@@ -122,7 +123,7 @@ packages) and must NOT build a second generator alongside BL-0025's.
       one-or-two-line purpose and lists every file in it with a one-or-two-line purpose.
 - [x] `npm run check` fails when a source file is missing from its folder INDEX.md, listed
       but deleted, or has an empty description.
-- [ ] Regenerating twice produces byte-identical output; hand-written description text
+- [x] Regenerating twice produces byte-identical output; hand-written description text
       survives regen.
 - [x] AGENTS.md tells agents to read the folder INDEX.md before working in a package.
 
@@ -140,8 +141,10 @@ Pros:
 - Writing the first pass is itself the audit — files that resist a two-line description
   get flagged for splitting now.
 
-Cons:
-- Descriptions live only in the INDEX.md, so file moves/renames need a manual index edit.
-- Without BL-0025 landed, this adds a second bespoke check step that should later merge
-  into the shared generator.
-- Ten more prose files to keep honest; the gate checks presence, not truthfulness.
+Cons (as landed, the first two no longer apply):
+- Descriptions live in each file's PS-057 comment, not the INDEX.md, so a file move or
+  rename carries its description with it and regeneration fixes the table.
+- The bespoke `index` check step was folded into the BL-0025 generator's `docs` step, so
+  there is one enforcement point rather than two.
+- Twelve index files' opening paragraphs are still hand-written prose; the gate checks that
+  every entry has a description, not that the description is true.

@@ -6,13 +6,15 @@ backlog, docs, and git history into a running process. It does not parse transcr
 backlog markdown, or git log itself — those live in `packages/transcripts`, `packages/backlog`,
 and `packages/gitlink`, and are only consumed here.
 
+<!-- BEGIN GENERATED: src-index (npm run docs:regen) -->
 | File | Purpose |
 |---|---|
-| `commits.ts` | Merges `gitlink`'s `CommitInfo` and `CommitSessionLink` into the `CommitRow` shape the commits table and `/api/commits` render, choosing a display label for the linked session (session id, else transcript file basename) and defaulting unmatched commits to confidence `'none'`. |
-| `invocations.ts` | Re-tails the same transcript files `packages/transcripts` already tails, independently, to extract per-invocation history (`parseToolInvocations`) that the shared `pollTranscripts` path folds away. Deliberately duplicates the offset/remainder tailing shape so the two readers behave identically. |
-| `main.ts` | Composition root: discovers transcript, subagent, and task-temp directories, polls transcripts and invocations, reads backlog and docs off disk, re-reads and correlates git log into commit rows, and starts the HTTP server. Run via `npm run dashboard`. |
-| `paging.ts` | Pure page arithmetic (`computePage`) plus the pager's HTML/CSS and a hand-mirrored plain-JS copy of the same arithmetic (`PAGER_CLIENT_SCRIPT`) for the browser, since an inline `<script>` cannot import the ES module. |
-| `pie.ts` | Pure SVG pie-chart geometry (`computePieArcs`, `pieSvg`) with a fixed color palette; the tested source of truth for arc math that `ui.ts`'s client script re-implements inline for the same reason `paging.ts` does. |
-| `range.ts` | Defines the usage time/count windows (`last-hour`, `today`, `all`, `last-100`, `last-500`) and slices an activity list down to one, for the `/api/state` and `/api/events` `?range=` query param. |
-| `server.ts` | `node:http` server serving the dashboard page, an SSE snapshot stream, and JSON endpoints for state, invocations, and commits; re-summarizes usage over a range without needing changes to `packages/core`. |
-| `ui.ts` | Renders the single-page dashboard: inline CSS, and an inline client script that connects to `/api/events`, renders every table and pie chart, and separately polls `/api/invocations` and `/api/commits`. |
+| `commits.ts` | Pure merge of gitlink's CommitInfo + CommitSessionLink into dashboard row shape (BL-0014). Reading git and running parseGitLog/correlateCommits happens in main.ts (composition root); this module only shapes the result for the /api/commits endpoint and the commits table. |
+| `invocations.ts` | Dashboard-local incremental tail for tool/skill invocations (BL-0012). The dashboard's fence this wave does not include packages/transcripts, and pollTranscripts only returns AgentActivity (one record per line, first tool_use block folded away) — not enough to show a per-invocation history. This module re-tails the same transcript files independently, tracking its own byte offsets, and runs parseToolInvocations (already exported from packages/transcripts, read-only import here) over newly appended lines. |
+| `main.ts` | Composition root: wires transcripts + backlog + docs into the dashboard server. Supervisor-owned. Run with: npm run dashboard |
+| `paging.ts` | Pagination for the dashboard's tables. This module is the tested source of truth for the page arithmetic; the client script it exports embeds an equivalent plain JS implementation (it runs in the browser against live SSE data and cannot import an ES module), so keep the two in sync when the arithmetic changes. |
+| `pie.ts` | Hand-rolled inline-SVG pie-chart geometry (BL-0013). No charting library — zero external requests, matches ui.ts's constraint. This module is the tested source of truth for the arc math; the client script in ui.ts embeds an equivalent plain JS implementation (it runs in the browser against live SSE data and cannot import an ES module), so keep the two in sync when the formula changes. |
+| `range.ts` | Pure usage-range slicing (BL-0008). Dashboard-side only: slices the raw activity list before feeding it into `summarizeUsage`/`outputTokensPerMinute` from packages/core and packages/transcripts. No packages/core edits. |
+| `server.ts` | HTTP + SSE dashboard server. node:http only, zero runtime deps. Depends only on core types + an injected provider — no filesystem access here. |
+| `ui.ts` | Single-page dashboard HTML. All CSS/JS inline, zero external requests. Client connects to /api/events (SSE) and renders on every push. |
+<!-- END GENERATED -->

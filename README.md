@@ -44,8 +44,8 @@ check` fails if they drift. Each package's description is the `description` fiel
 <!-- BEGIN GENERATED: packages (npm run docs:regen) -->
 | Package | What it does |
 |---|---|
-| `packages/backlog` | Parses, renders, and loads the markdown work items in backlog/, and allocates and validates their BL-NNNN ids. |
-| `packages/check` | Runs the check gate — typecheck, lint, escape-hatch ratchet, tests, backlog ids, INDEX.md completeness, and doc-block freshness — stopping at the first failure. |
+| `packages/backlog` | Parses, renders, and loads the markdown work items in backlog/, allocates and validates their BL-NNNN ids, and owns the repository's documentation generator (npm run docs:regen). |
+| `packages/check` | Runs the check gate — typecheck, lint, escape-hatch ratchet, tests, backlog ids, import boundaries, and doc-block freshness — stopping at the first failure. |
 | `packages/codemap` | Builds a CodeIndex of the repository (symbols, references, quality metrics) and finds repeated expressions to extract into functions. |
 | `packages/codeview` | Code overview browser on port 4848: syntax-coloured source, symbol navigation, per-file and per-folder metrics, and a feedback box that files backlog items. |
 | `packages/core` | Shared contract types and pure helpers for the observability packages; supervisor-owned. |
@@ -65,7 +65,7 @@ Every command is an npm script in the root `package.json`.
 | `npm run typecheck` | Type-checks every package with `tsc --noEmit` under the repository's strict compiler settings. |
 | `npm run test` | Runs the whole vitest suite once. |
 | `npm run lint` | Runs ESLint with the functional-subset configuration. |
-| `npm run check` | The gate: typecheck, lint, ratchet, tests, backlog ids, INDEX.md completeness, and doc-block freshness, stopping at the first failure. |
+| `npm run check` | The gate: typecheck, lint, ratchet, tests, backlog ids, import boundaries, and doc-block freshness, stopping at the first failure. |
 | `npm run dashboard` | Starts the agent observability server on http://localhost:4747. |
 | `npm run backlog:regen` | Rebuilds the generated backlog/BACKLOG.md and backlog/DONE.md views from item frontmatter. |
 | `npm run backlog:archive` | Moves done and dropped backlog items into backlog/archive/. |
@@ -78,7 +78,7 @@ Every command is an npm script in the root `package.json`.
 | `npm run init` | Plans and applies this repository's strictness gates in another repository. |
 | `npm run mcp` | Starts the MCP server over the code index on stdio. |
 | `npm run hooks:install` | Points this clone's git hooks at .githooks so the pre-commit staging guard runs. |
-| `npm run docs:regen` | Rewrites the generated inventory blocks in README.md and docs/tools-and-process.md; `-- --check` reports staleness instead. |
+| `npm run docs:regen` | Rewrites every generated block — the inventory tables in README.md and docs/tools-and-process.md, and each `packages/*/src/INDEX.md` file table; `-- --check` reports staleness instead. |
 <!-- END GENERATED -->
 
 ## Motivation 

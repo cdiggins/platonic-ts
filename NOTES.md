@@ -862,3 +862,28 @@ purpose resisted a two-line description without padding, flagged here rather tha
   framing.
 - `packages/mcp/src/review.ts` — `deleteSymbol` (safety-checked deletion) and `symbolDiff`
   (before/after declaration diff) share a "reviewing a change" theme but unrelated mechanisms.
+
+## BL-0032 — INDEX.md file tables are generated, and the `index` check step is gone
+
+The description of a source file now lives in that file's PS-057 leading `//` comment, not in
+the folder's INDEX.md. `npm run docs:regen` harvests it — the first paragraph of the leading
+comment block for a file, the opening hand-written paragraph of the subfolder's INDEX.md for a
+subfolder — and splices the table into the `src-index` marker block. The opening paragraph of
+each INDEX.md is still hand-written prose outside the markers.
+
+Harvest direction matters: descriptions travel with the code, so moving or renaming a file no
+longer needs a manual index edit, and a new file with no purpose comment fails regeneration
+rather than being listed blank.
+
+There is now one enforcement point. The `docs` step of `npm run check` fails when a committed
+table is not what regeneration would write, when a source-bearing folder has no INDEX.md, when
+an INDEX.md never opens the block, or when a file has no purpose comment to harvest. The
+separate `index` step, `packages/check/src/indexTable.ts`, and `indexScan.ts` were deleted;
+the ruling is docs/decisions/2026-08-23-index-md-generated-by-docsgen.md.
+
+Two implementation notes for whoever extends this. `regenerateDocs` now takes per-target block
+maps rather than one global map, so a marker naming a block its document does not own is
+reported as unknown. And a leading comment block whose first paragraph runs long becomes a long
+table cell — several files were reflowed so the summary sits in the first paragraph and the
+mechanism notes sit after a blank `//` line.
+

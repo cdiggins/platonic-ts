@@ -1,4 +1,5 @@
-// Composition root / CLI entry for this package's two reports over the repository's own code:
+// Composition root / CLI entry for this package's two reports over the repository's own
+// code: `npm run stats` and `npm run clones`.
 //
 //   npm run stats            size distributions of functions, statements, expressions (BL-0027)
 //   npm run clones           expressions that repeat under different names (shapes.ts, clones.ts)

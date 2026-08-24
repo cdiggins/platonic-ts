@@ -14,9 +14,20 @@ import {
   type ScriptEntry,
   type SkillEntry,
 } from './docsgen.ts'
+import { buildIndexBlocks, indexIssues } from './indexdoc.ts'
+import { readFolderIndexes } from './indexdocIo.ts'
 
-// Documents that carry generated blocks, relative to the repository root.
+// Repository-wide documents that carry generated blocks, relative to the repository root. The
+// `packages/*/src/INDEX.md` documents are found on disk instead, so a new package needs no
+// edit here.
 export const docsTargets: readonly string[] = ['README.md', 'docs/tools-and-process.md']
+
+// One document to regenerate and the blocks that belong in it. Blocks are per-target, not
+// global: a marker naming a block its own document does not own counts as unknown.
+export type DocsTarget = {
+  readonly file: string
+  readonly blocks: ReadonlyMap<string, string>
+}
 
 // What regeneration found in one document.
 export type DocsFileResult = {
@@ -27,10 +38,12 @@ export type DocsFileResult = {
 }
 
 // Outcome of a whole regeneration pass. `ok` is false when a document is stale or names an
-// unknown block, or when a source row has no description to print.
+// unknown block, when a source row has no description to print, or when a folder index cannot
+// be built at all.
 export type DocsRegenReport = {
   readonly files: readonly DocsFileResult[]
   readonly missing: readonly string[]
+  readonly indexProblems: readonly string[]
   readonly ok: boolean
 }
 
@@ -125,16 +138,29 @@ export const readDocsSources = async (repoDir: string): Promise<DocsSources> => 
 
 // Regenerates every target document's blocks. In `check` mode nothing is written and a stale
 // document is reported instead; in `write` mode a document is rewritten only if it changed.
+// Targets are the repository-wide documents plus every folder INDEX.md found under
+// `packages/*/src`; a folder whose entries cannot all be described fails the pass.
 export const regenerateDocs = async (
   repoDir: string,
   mode: 'write' | 'check',
 ): Promise<DocsRegenReport> => {
-  const sources = await readDocsSources(repoDir)
-  const blocks = buildBlocks(sources)
+  const [sources, folders] = await Promise.all([
+    readDocsSources(repoDir),
+    readFolderIndexes(repoDir),
+  ])
+  const inventory = buildBlocks(sources)
   const missing = missingDescriptions(sources)
+  const indexProblems = indexIssues(folders).map((issue) => issue.detail)
+  const targets: readonly DocsTarget[] = [
+    ...docsTargets.map((file) => ({ file, blocks: inventory })),
+    ...folders.map((folder) => ({
+      file: `${folder.folder}/INDEX.md`,
+      blocks: buildIndexBlocks(folder),
+    })),
+  ]
 
   const files = await Promise.all(
-    docsTargets.map(async (file): Promise<DocsFileResult> => {
+    targets.map(async ({ file, blocks }): Promise<DocsFileResult> => {
       const path = join(repoDir, file)
       const md = await readText(path)
       if (md === undefined) {
@@ -150,6 +176,7 @@ export const regenerateDocs = async (
 
   const clean =
     missing.length === 0 &&
+    indexProblems.length === 0 &&
     files.every((f) => f.unknown.length === 0 && (mode === 'write' || f.stale.length === 0))
-  return { files, missing, ok: clean }
+  return { files, missing, indexProblems, ok: clean }
 }
