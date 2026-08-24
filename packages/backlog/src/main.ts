@@ -3,6 +3,7 @@
 //   npx tsx packages/backlog/src/main.ts next-id <slug> [<slug> ...]
 //   npx tsx packages/backlog/src/main.ts validate
 //   npx tsx packages/backlog/src/main.ts archive
+//   npx tsx packages/backlog/src/main.ts docs-regen [--check]
 import { spawn } from 'node:child_process'
 import { basename, dirname, relative, resolve } from 'node:path'
 import { mkdir, rename, writeFile } from 'node:fs/promises'
@@ -15,6 +16,7 @@ import {
   readBacklogFileInfos,
   readMarkerNames,
 } from './io.ts'
+import { regenerateDocs } from './docsgenIo.ts'
 
 const repoDir = resolve(import.meta.dirname, '..', '..', '..')
 const backlogDir = resolve(repoDir, 'backlog')
@@ -25,7 +27,8 @@ const usage = `usage:
   next-id <slug> [<slug> ...]  claim one id per slug and create its empty item file
   validate                     report duplicate, misnamed, or unclaimed ids
   backfill-markers             record markers for items that predate the allocator
-  archive                      move done/dropped items into backlog/archive/`
+  archive                      move done/dropped items into backlog/archive/
+  docs-regen [--check]         rewrite the generated doc blocks; --check reports staleness`
 
 const regen = async (): Promise<void> => {
   const items = await loadBacklog(backlogDir)
@@ -117,6 +120,30 @@ const archive = async (): Promise<void> => {
   for (const name of moved) console.log(`  ${name}`)
 }
 
+const docsRegen = async (args: readonly string[]): Promise<void> => {
+  const mode = args.includes('--check') ? 'check' : 'write'
+  const report = await regenerateDocs(repoDir, mode)
+
+  for (const missing of report.missing) console.error(`no description for ${missing}`)
+  for (const file of report.files) {
+    for (const name of file.unknown) console.error(`${file.file}: no generator for block "${name}"`)
+    if (mode === 'check' && file.stale.length > 0) {
+      console.error(`${file.file}: stale block(s) ${file.stale.join(', ')} — run npm run docs:regen`)
+    }
+    if (mode === 'write') {
+      console.log(
+        file.written ? `${file.file}: rewrote ${file.stale.join(', ')}` : `${file.file}: up to date`,
+      )
+    }
+  }
+
+  if (!report.ok) {
+    process.exitCode = 1
+    return
+  }
+  if (mode === 'check') console.log('docs blocks are up to date')
+}
+
 const main = async (): Promise<void> => {
   const command = process.argv[2] ?? 'regen'
   const rest = process.argv.slice(3)
@@ -138,6 +165,10 @@ const main = async (): Promise<void> => {
   }
   if (command === 'archive') {
     await archive()
+    return
+  }
+  if (command === 'docs-regen') {
+    await docsRegen(rest)
     return
   }
   console.error(`unknown command: ${command}\n${usage}`)

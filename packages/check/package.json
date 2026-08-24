@@ -1,6 +1,7 @@
 {
   "name": "@platonic/check",
   "version": "0.0.1",
+  "description": "Runs the check gate — typecheck, lint, escape-hatch ratchet, tests, backlog ids, INDEX.md completeness, and doc-block freshness — stopping at the first failure.",
   "private": true,
   "type": "module",
   "exports": {

@@ -2,15 +2,15 @@
 id: BL-0025
 title: docs:regen — generated marker-block inventories with staleness gate
 type: feature
-status: idea
+status: done
 priority: "?"
 effort: s
 risk: low
 area: repo
 sprint:
 created: 2026-08-23
-closed:
-links: [docs/tools-and-process.md, README.md, packages/backlog/src/index.ts, packages/check/src/main.ts, backlog/BL-0022-caveman-final-answer-clarity.md]
+closed: 2026-08-23
+links: [docs/tools-and-process.md, README.md, packages/backlog/src/docsgen.ts, packages/backlog/src/docsgenIo.ts, packages/check/src/run.ts, backlog/BL-0022-caveman-final-answer-clarity.md]
 ---
 
 ## Idea
@@ -87,12 +87,12 @@ inside the published file, and the gate (not convention) enforces freshness.
 
 ## Done means
 
-- [ ] `npm run docs:regen` regenerates marker blocks in README.md and
+- [x] `npm run docs:regen` regenerates marker blocks in README.md and
       docs/tools-and-process.md from package.json + SKILL.md frontmatter.
-- [ ] Every `packages/*/package.json` has a `description` field.
-- [ ] `npm run check` fails when a generated block is stale; passes after regen.
-- [ ] Deleting a package or skill and running regen removes it from every inventory.
-- [ ] Hand-written prose outside markers survives regen byte-for-byte.
+- [x] Every `packages/*/package.json` has a `description` field.
+- [x] `npm run check` fails when a generated block is stale; passes after regen.
+- [x] Deleting a package or skill and running regen removes it from every inventory.
+- [x] Hand-written prose outside markers survives regen byte-for-byte.
 
 ## Simplest possible implementation
 

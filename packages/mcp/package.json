@@ -1,6 +1,7 @@
 {
   "name": "@platonic/mcp",
   "version": "0.0.1",
+  "description": "MCP server over the code index: outlines, declarations, type-checked references, inferred types, diagnostics, dependency analyses, and name-addressed editing.",
   "private": true,
   "type": "module",
   "exports": {

@@ -1,5 +1,5 @@
-// The `platonic check` runner: typecheck -> lint -> ratchet -> tests ->
-// backlog ids, stopping at first failure. Subprocess steps use spawn with
+// The `platonic check` runner: typecheck -> lint -> ratchet -> tests -> backlog ids ->
+// INDEX.md completeness -> generated doc blocks, stopping at first failure. Subprocess steps use spawn with
 // node:child_process and shell:true (Windows needs a shell to resolve npx); timing uses
 // process.hrtime.bigint() rather than Date.now() (project convention:
 // ambient Date.now() is banned outside composition roots — see
@@ -13,7 +13,7 @@ import { checkIndexFolders, type IndexIssue } from './indexTable.ts'
 import { scanIndexFolders } from './indexScan.ts'
 
 // Names of validation steps that can be run independently.
-export type StepName = 'typecheck' | 'lint' | 'ratchet' | 'tests' | 'backlog' | 'index'
+export type StepName = 'typecheck' | 'lint' | 'ratchet' | 'tests' | 'backlog' | 'index' | 'docs'
 
 // Outcome of a single validation step.
 export type CheckStepResult = {
@@ -123,6 +123,7 @@ const commands: Readonly<Record<Exclude<StepName, 'ratchet' | 'index'>, string>>
   lint: 'npx eslint .',
   tests: 'npx vitest run',
   backlog: 'npx tsx packages/backlog/src/main.ts validate',
+  docs: 'npx tsx packages/backlog/src/main.ts docs-regen --check',
 }
 
 const formatIndexIssue = (issue: IndexIssue): string => `${issue.folder}: ${issue.kind} — ${issue.detail}`
@@ -165,7 +166,15 @@ const runStep = async (
   }
 }
 
-const defaultSteps: readonly StepName[] = ['typecheck', 'lint', 'ratchet', 'tests', 'backlog', 'index']
+const defaultSteps: readonly StepName[] = [
+  'typecheck',
+  'lint',
+  'ratchet',
+  'tests',
+  'backlog',
+  'index',
+  'docs',
+]
 
 // Runs validation steps in order and stops at first failure.
 export const runCheck = async (options: {

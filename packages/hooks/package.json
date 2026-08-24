@@ -1,6 +1,7 @@
 {
   "name": "@platonic/hooks",
   "version": "0.0.1",
+  "description": "The Claude Code hooks and git pre-commit hook behind the staging guard and the hook event log.",
   "private": true,
   "type": "module",
   "exports": {

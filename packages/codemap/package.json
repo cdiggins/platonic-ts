@@ -1,6 +1,7 @@
 {
   "name": "@platonic/codemap",
   "version": "0.0.1",
+  "description": "Builds a CodeIndex of the repository (symbols, references, quality metrics) and finds repeated expressions to extract into functions.",
   "private": true,
   "type": "module",
   "exports": {

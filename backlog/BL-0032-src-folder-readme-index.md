@@ -69,8 +69,12 @@ convention-maintained, or it rots.
 
 ## Related
 
-- [BL-0025] — supplies the exact mechanism: marker-block regen plus a check-gate staleness
-  step. This item is plausibly a second consumer of that generator, not new machinery.
+- [BL-0025] (done) — the mechanism exists: `packages/backlog/src/docsgen.ts` parses and
+  splices `<!-- BEGIN GENERATED: <name> -->` blocks, `docsgenIo.ts` reads the sources and
+  writes or audits the files, and the `docs` step of `npm run check` fails on staleness.
+  This item is plausibly a second consumer of that generator, not new machinery — INDEX.md
+  files stay hand-written until it is implemented, enforced only for completeness by the
+  `index` check step (`packages/check/src/indexTable.ts`).
 - docs/small-modules-for-agents-2026-08-23.md §7.5 — proposes PS-064 (package README with
   fixed sections, generated Contract block). This idea extends it downward: file-level
   index, not just export-level contract. §7.7 (PS-065, termination conditions) shares the

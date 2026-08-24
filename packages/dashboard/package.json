@@ -1,6 +1,7 @@
 {
   "name": "@platonic/dashboard",
   "version": "0.0.1",
+  "description": "Agent observability server on port 4747: an HTTP + server-sent-events service and single-page UI over transcripts, usage, backlog, and docs.",
   "private": true,
   "type": "module",
   "exports": {

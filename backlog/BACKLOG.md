@@ -21,6 +21,5 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0011](BL-0011-conformance-score.md) | Score purity, complexity, and quality against the platonic ideals | idea | ? | ? | ? | repo | idea |  |
 | [BL-0020](BL-0020-start-work-skill.md) | Add start-work command that records the execution approach | feature | ? | M | low | repo | idea |  |
 | [BL-0022](BL-0022-caveman-final-answer-clarity.md) | Drop caveman default — measured saving ~2%, override cost ~11% of turns | idea | ? | ? | low | repo | idea |  |
-| [BL-0025](BL-0025-docs-regen-marker-blocks.md) | docs:regen — generated marker-block inventories with staleness gate | feature | ? | ? | low | repo | idea |  |
 | [BL-0028](BL-0028-fuzzy-code-discovery.md) | Answer fuzzy availability questions with a ranked map and a scout agent | idea | ? | ? | ? | mcp | idea |  |
 | [BL-0032](BL-0032-src-folder-readme-index.md) | Per-src-folder INDEX.md as a maintained file index | idea | ? | ? | ? | repo | idea |  |

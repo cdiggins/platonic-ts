@@ -21,7 +21,27 @@
     "transcripts": "tsx packages/transcripts/src/main.ts",
     "init": "tsx packages/init/src/main.ts",
     "mcp": "tsx packages/mcp/src/main.ts",
-    "hooks:install": "git config core.hooksPath .githooks"
+    "hooks:install": "git config core.hooksPath .githooks",
+    "docs:regen": "tsx packages/backlog/src/main.ts docs-regen"
+  },
+  "scriptDescriptions": {
+    "typecheck": "Type-checks every package with `tsc --noEmit` under the repository's strict compiler settings.",
+    "test": "Runs the whole vitest suite once.",
+    "lint": "Runs ESLint with the functional-subset configuration.",
+    "check": "The gate: typecheck, lint, ratchet, tests, backlog ids, INDEX.md completeness, and doc-block freshness, stopping at the first failure.",
+    "dashboard": "Starts the agent observability server on http://localhost:4747.",
+    "backlog:regen": "Rebuilds the generated backlog/BACKLOG.md and backlog/DONE.md views from item frontmatter.",
+    "backlog:archive": "Moves done and dropped backlog items into backlog/archive/.",
+    "backlog:next-id": "Claims the next free BL-NNNN id for a slug and creates its empty item file.",
+    "backlog:validate": "Reports duplicate, misnamed, or unclaimed backlog ids.",
+    "codeview": "Starts the code overview browser on http://localhost:4848.",
+    "stats": "Reports size distributions of this repository's functions, statements, and expressions.",
+    "clones": "Reports expressions that repeat under different names; `-- --extract N` plans the extracted function.",
+    "transcripts": "Analyzes a project's Claude Code session transcripts and reports where the tokens went.",
+    "init": "Plans and applies this repository's strictness gates in another repository.",
+    "mcp": "Starts the MCP server over the code index on stdio.",
+    "hooks:install": "Points this clone's git hooks at .githooks so the pre-commit staging guard runs.",
+    "docs:regen": "Rewrites the generated inventory blocks in README.md and docs/tools-and-process.md; `-- --check` reports staleness instead."
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

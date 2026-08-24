@@ -1,6 +1,7 @@
 {
   "name": "@platonic/gitlink",
   "version": "0.0.1",
+  "description": "Correlates git commits with the agent sessions that produced them, for the dashboard commit view.",
   "private": true,
   "type": "module",
   "exports": {

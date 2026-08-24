@@ -1,6 +1,7 @@
 {
   "name": "@platonic/init",
   "version": "0.0.1",
+  "description": "Retrofits this repository strictness gates into another repository: scans, plans, and applies only on confirmation, never overwriting existing files.",
   "private": true,
   "type": "module",
   "exports": {

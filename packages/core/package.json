@@ -1,6 +1,7 @@
 {
   "name": "@platonic/core",
   "version": "0.0.1",
+  "description": "Shared contract types and pure helpers for the observability packages; supervisor-owned.",
   "private": true,
   "type": "module",
   "exports": {

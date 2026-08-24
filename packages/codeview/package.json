@@ -1,6 +1,7 @@
 {
   "name": "@platonic/codeview",
   "version": "0.0.1",
+  "description": "Code overview browser on port 4848: syntax-coloured source, symbol navigation, per-file and per-folder metrics, and a feedback box that files backlog items.",
   "private": true,
   "type": "module",
   "exports": {

@@ -1,6 +1,7 @@
 {
   "name": "@platonic/transcripts",
   "version": "0.0.1",
+  "description": "Parses and tails Claude Code transcript JSONL into AgentActivity records, and analyzes where a session corpus spent its tokens.",
   "private": true,
   "type": "module",
   "exports": {
