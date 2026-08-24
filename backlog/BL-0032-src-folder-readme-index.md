@@ -1,6 +1,6 @@
 ---
 id: BL-0032
-title: Per-src-folder README.md as a maintained file index
+title: Per-src-folder INDEX.md as a maintained file index
 type: idea
 status: idea
 priority: "?"
@@ -15,8 +15,10 @@ links: [backlog/BL-0025-docs-regen-marker-blocks.md, docs/small-modules-for-agen
 
 ## Idea
 
-Every `packages/*/src` folder (and any subfolder) carries a `README.md` that acts as an
-index: one entry per file and subfolder, each with a one-or-two-line statement of purpose.
+Every `packages/*/src` folder (and any subfolder) carries an `INDEX.md` that acts as an
+index: it opens with a one-or-two-line statement of the folder's own purpose (the folder
+analogue of PS-057's file-purpose comment), followed by one entry per file and subfolder,
+each with a one-or-two-line statement of purpose.
 The index serves two audiences — humans learning what lives where, and agents orienting in
 a package before touching it. The two-line budget doubles as a design probe: a file whose
 purpose cannot be stated in two lines is doing more than one thing and is a candidate for
@@ -26,32 +28,44 @@ convention-maintained, or it rots.
 
 ## Assumptions
 
-- Agents actually read a folder README before working in that folder — cheap to make true
-  by adding one line to AGENTS.md, but worth verifying via transcripts.
+- Agents actually read a folder INDEX.md before working in that folder — cheap to make
+  true by adding one line to AGENTS.md, but worth verifying via transcripts.
 - The one-to-two-line descriptions carry information the file name does not; otherwise the
   index is noise (same "earn the line" rule AGENTS.md already applies to doc comments).
 - Descriptions cannot be fully generated — purpose is judgment — so the mechanism must
   combine a generated file list with hand-written description text, and gate the list's
   completeness rather than the prose's quality.
-- Ten packages with mostly flat `src/` folders keep the surface small (~10–15 READMEs).
+- Ten packages with mostly flat `src/` folders keep the surface small (~10–15 index
+  files).
 
 ## Design decisions
 
-- **Generated vs gated** — fully generate the README from source (descriptions must then
-  live somewhere in code, e.g. a `//!` first-line file comment) vs hand-written README with
+- **Generated vs gated** — fully generate the INDEX.md from source (descriptions must then
+  live somewhere in code, e.g. the PS-057 file-purpose comment) vs hand-written index with
   a gate that fails when a file is missing from or removed after the index. Generation
   gives one source of truth; gating keeps prose free-form. The BL-0025 marker-block
   mechanism is the middle path: generated file list skeleton, hand-written description
   cells.
-- **Description home** — in the README itself vs a leading `//` file-purpose comment in
-  each source file that the generator harvests. Harvesting keeps description next to code
-  (moves/renames carry it along) and makes the README fully generated; recommended if
-  BL-0025's generator lands first.
+- **Description home** — in the INDEX.md itself vs the PS-057 file-purpose comment in
+  each source file, harvested by the generator. Harvesting keeps description next to code
+  (moves/renames carry it along) and makes the INDEX.md fully generated; recommended now
+  that PS-057 mandates the comment.
 - **Enforcement point** — `npm run check` staleness step (matches ratchet philosophy) vs
   advisory-only. Advisory indexes rot; the whole premise is mechanical maintenance.
 - **Relationship to package-level README (PS-064 proposal)** — is the src-folder index a
   section of the package README or a separate file? One file per package avoids two
   half-overlapping docs; but subfolders (e.g. a future nested `src/`) need their own.
+- **File name: INDEX.md vs README.md** — INDEX.md keeps the index distinct from the
+  package-level README.md (PS-064's Purpose/Contract/Non-goals document) so the two never
+  compete for the same file, and the name says what it is. Cost: GitHub auto-renders
+  README.md in a directory view but not INDEX.md, and codeview's readme browsing would
+  need to pick the name up. Recommended: INDEX.md; treat the GitHub rendering loss as
+  acceptable since agents and codeview are the primary readers.
+- **Where the folder's own purpose lives** — PS-057 gives every file a purpose comment;
+  the folder analogue needs a home. Recommended: the opening lines of the folder's
+  INDEX.md, before the file table. This makes the scheme recursive: a parent index's
+  entry for a subfolder can be harvested from the subfolder INDEX.md's opening statement,
+  exactly as file entries can be harvested from PS-057 comments.
 
 ## Related
 
@@ -72,12 +86,12 @@ convention-maintained, or it rots.
 ## Approaches
 
 Short term: piggyback on BL-0025. Add a `docs:regen` target that writes/updates each
-`packages/*/src/README.md` with a generated table (file name column from disk, description
-column preserved from the existing README or harvested from a leading file comment), and a
+`packages/*/src/INDEX.md` with a generated table (file name column from disk, description
+column preserved from the existing index or harvested from the PS-057 comment), and a
 check step that fails on unlisted or ghost files. Empty description cells fail the gate —
 that is the "can you say it in two lines?" probe made mechanical.
 
-Long term: descriptions harvested from first-line file comments make the README fully
+Long term: descriptions harvested from PS-057 comments make the INDEX.md fully
 generated and the source file self-describing; `npm run stats` zones or codemap metrics
 could annotate each row (size, zone) so the index doubles as a health map. The two-line
 rule could become a lint (PS-nnn): flag files whose description exceeds the budget or is
@@ -100,29 +114,30 @@ packages) and must NOT build a second generator alongside BL-0025's.
 
 ## Done means
 
-- [ ] Every `packages/*/src` folder has a `README.md` listing every file in it with a
-      one-or-two-line purpose.
-- [ ] `npm run check` fails when a source file is missing from its folder README, listed
+- [ ] Every `packages/*/src` folder has an `INDEX.md` that opens with the folder's own
+      one-or-two-line purpose and lists every file in it with a one-or-two-line purpose.
+- [ ] `npm run check` fails when a source file is missing from its folder INDEX.md, listed
       but deleted, or has an empty description.
 - [ ] Regenerating twice produces byte-identical output; hand-written description text
       survives regen.
-- [ ] AGENTS.md tells agents to read the folder README before working in a package.
+- [ ] AGENTS.md tells agents to read the folder INDEX.md before working in a package.
 
 ## Simplest possible implementation
 
-Hand-write the ~10 `src/README.md` files once, then add a small check (inside the BL-0025
+Hand-write the ~10 `src/INDEX.md` files once, then add a small check (inside the BL-0025
 generator when it exists, or a standalone ~60-line step in `packages/check`) that diffs the
 set of listed file names against the directory listing and fails on mismatch or empty
 description. No harvesting, no generation of prose.
 
 Pros:
-- Immediate orientation value for agents; codeview renders them for free.
+- Immediate orientation value for agents; codeview renders markdown, though it may need
+  to learn the INDEX.md name.
 - The gate makes the index self-healing: adding a file without describing it fails check.
 - Writing the first pass is itself the audit — files that resist a two-line description
   get flagged for splitting now.
 
 Cons:
-- Descriptions live only in the README, so file moves/renames need a manual README edit.
+- Descriptions live only in the INDEX.md, so file moves/renames need a manual index edit.
 - Without BL-0025 landed, this adds a second bespoke check step that should later merge
   into the shared generator.
 - Ten more prose files to keep honest; the gate checks presence, not truthfulness.
