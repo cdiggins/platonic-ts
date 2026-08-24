@@ -1,0 +1,52 @@
+# The INDEX.md completeness gate belongs to packages/check, not packages/codemap
+
+**Date:** 2026-08-23  **Mode:** after  **Status:** active
+
+## Question
+BL-0032's INDEX.md-per-src-folder gate landed in `packages/check` (commit a413f9d). Should
+it instead live in `packages/codemap`, which also analyzes source folders?
+
+## Ruling
+`packages/check` is the right owner; the landed placement stands. `indexTable.ts` (pure
+validation) plus `indexScan.ts` (IO) plus the `index` step in `run.ts` follow the package's
+existing shape exactly (`ratchet.ts` pure + `scan.ts` IO + a step in `run.ts`). Do not move
+it to codemap, and do not make the gate depend on codemap later.
+
+## Because
+- Dependency direction forbids the alternative: `packages/codemap/src/io.ts` already imports
+  `collectSourceFiles` from `packages/check/src/scan.ts`, so `check` importing anything from
+  `codemap` would create a package-level cycle.
+- The gate needs no code semantics. `indexScan.ts` needs only file and directory names plus
+  INDEX.md text — a `readdir` walk. Codemap's product is a `CodeIndex` of symbols,
+  references, and metrics; building one to list filenames would buy nothing and cost seconds.
+- `run.ts` is the repo's only definition of green, and a step that fails `npm run check`
+  must live where the runner lives; the ratchet step set that precedent.
+- The `index` step is wired in-process in `run.ts` the same way the `ratchet` step is, so the
+  change follows the file's existing convention rather than starting a second one.
+
+## Constraints for implementers
+- The INDEX.md gate stays semantics-free: names on disk versus rows in a markdown table. If
+  a future version wants symbol-aware checks (e.g. "the description mentions the main
+  export"), that is a codemap analysis surfaced elsewhere, not a `check` step — `check` must
+  never import from `codemap`.
+- `indexScan.ts` and `scan.ts` both walk `packages/*/src`; they stay separate because their
+  outputs differ (per-folder grouping with INDEX.md content versus a flat `.ts` file list).
+  Unify only if a third walker appears in the package.
+- New failure kinds extend `IndexIssueKind` in `indexTable.ts` with a covering test in
+  `packages/check/test/indexTable.test.ts`; the scan side should not gain validation logic.
+
+## Rejected
+- `packages/codemap`: creates an import cycle with `check` (codemap already imports
+  `check/src/scan.ts`), and the gate uses none of codemap's index.
+- A standalone script outside `packages/*`: invisible to typecheck, lint, ratchet, and tests
+  — the same failure mode the hooks migration just paid to escape.
+
+## Enforcement
+Mechanically checkable: an import-boundary rule "no file under `packages/check` imports from
+`packages/codemap`" would hold the dependency direction. Cheap to add to the existing lint
+config and worth filing.
+
+## Revisit when
+A gate step genuinely needs symbol-level facts, or the shared-walker situation changes (a
+third `packages/*/src` walker appears in `check`, or `codemap` stops importing
+`check/src/scan.ts` and frees the dependency direction).
