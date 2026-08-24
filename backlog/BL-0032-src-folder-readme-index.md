@@ -84,7 +84,8 @@ rule could become a lint (PS-nnn): flag files whose description exceeds the budg
 missing.
 
 Adjacent ideas worth their own item:
-- A first-line file-purpose comment convention (style-guide rule) independent of READMEs.
+- A first-line file-purpose comment convention (style-guide rule) independent of READMEs —
+  landed as PS-057.
 
 ## Bedrock
 

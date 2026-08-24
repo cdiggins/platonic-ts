@@ -197,6 +197,14 @@ comment naming the rule ID and the trade-off, and — if the violation is an esc
 `ratchet.json` in the same commit. A silent violation is the failure mode; a documented one is a
 decision.
 
+**PS-057 — Every source file opens with a `//` purpose comment, at most two lines.** State what
+lives in this file and why — information the file name does not already carry. Same doctrine as
+AGENTS.md's "Documenting exports": earn the lines, write from evidence, timeless present tense. A
+`util` file may say so honestly; vagueness is not an accepted answer, but "unclassifiable" is. If
+the purpose does not fit two lines, the file holds more than one concern — split it, don't
+summarize around the problem. New files comply from creation; an existing file gains the comment
+the next time it is touched, not by a repo-wide retrofit.
+
 ## Applying this
 
 For an agent editing this repository:
