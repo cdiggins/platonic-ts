@@ -35,6 +35,9 @@ Ratchet counts escape hatches (`any`, `as`, `!`, `@ts-` and eslint-disable comme
 
 ## Conventions
 
+Read a folder's `INDEX.md` before working in it — every `packages/*/src` folder (and any
+subfolder of one that holds source files) carries one, and `npm run check` keeps it honest.
+
 Commit to `main` with pathspec (`git commit -- <paths>`); push only after a verified
 milestone (`git pull --rebase` first — parallel agents collide). No branches, no worktrees.
 A commit may contain only files you edited yourself, so never stage broadly: no `git add -A`,
@@ -42,6 +45,10 @@ no bare `git add`, no `git commit -a`. Two guards enforce this and will refuse t
 the correct one to run instead — a `PreToolUse` hook on the Bash and PowerShell tools, and a
 git `pre-commit` hook enabled per clone with `npm run hooks:install`. Both live in
 `packages/hooks`.
+
+Prefer the Bash tool for shell work: Windows PowerShell 5.1 starts ~5x slower and has no `&&`
+or `||`, which is a parse error rather than a fallback. The PreToolUse hook refuses that one
+case. Reach for PowerShell when the task is Windows-native (registry, ACLs, .NET, `Get-Process`).
 Pure functional style, zero runtime deps, relative imports across packages.
 Full rules in [docs/style-guide.md](docs/style-guide.md); breaking one requires PS-056.
 

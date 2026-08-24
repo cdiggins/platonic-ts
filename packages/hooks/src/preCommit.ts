@@ -7,8 +7,9 @@
 
 import { pathToFileURL } from 'node:url'
 
-import { refusalMessage, wideCommitViolations } from './gitStaging.ts'
+import { STAGING_RATIONALE, wideCommitViolations } from './gitStaging.ts'
 import { refuse, stagedPaths, wideCommitAllowed } from './io.ts'
+import { refusalMessage } from './refusal.ts'
 
 const REMEDY = [
   'Commit each package separately:',
@@ -22,7 +23,7 @@ const main = (): void => {
   if (wideCommitAllowed()) return
   const violations = wideCommitViolations(stagedPaths())
   if (violations.length === 0) return
-  refuse(refusalMessage(violations, REMEDY), 1)
+  refuse(refusalMessage(violations, STAGING_RATIONALE, REMEDY), 1)
 }
 
 const isMainModule = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href

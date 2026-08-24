@@ -3,45 +3,7 @@
 // pre-commit hook (inspects the staged path set). Agents here share one working tree, so a
 // commit may only contain files its author named — see AGENTS.md "Conventions".
 
-// One shell command split into segments of tokens, splitting only on UNQUOTED separators
-// (`;`, newline, `|`, `&`) and unquoted whitespace. Quoted runs collapse into their token, so
-// a multi-line `-m` message never reads as a separator and `echo 'git add -A'` is not a
-// `git add`. Tokens are not unquoted-and-restored: a token that contained quotes carries a
-// `\0` marker and therefore never compares equal to a bare word like `git`.
-type ScanState = {
-  readonly segments: readonly (readonly string[])[]
-  readonly tokens: readonly string[]
-  readonly token: string
-  readonly quote: string | undefined
-  readonly escaped: boolean
-}
-
-const EMPTY_SCAN: ScanState = { segments: [], tokens: [], token: '', quote: undefined, escaped: false }
-
-const SEPARATORS = new Set([';', '\n', '|', '&'])
-const QUOTES = new Set(["'", '"', '`'])
-
-const closeToken = (s: ScanState): ScanState =>
-  s.token === '' ? s : { ...s, tokens: [...s.tokens, s.token], token: '' }
-
-const closeSegment = (s: ScanState): ScanState => {
-  const t = closeToken(s)
-  return t.tokens.length === 0 ? t : { ...t, segments: [...t.segments, t.tokens], tokens: [] }
-}
-
-const scanChar = (s: ScanState, c: string): ScanState => {
-  if (s.escaped) return { ...s, token: s.token + c, escaped: false }
-  if (s.quote !== undefined) return c === s.quote ? { ...s, quote: undefined } : { ...s, token: s.token + c }
-  if (c === '\\') return { ...s, escaped: true }
-  if (QUOTES.has(c)) return { ...s, quote: c, token: `${s.token}\0` }
-  if (SEPARATORS.has(c)) return closeSegment(s)
-  if (/\s/.test(c)) return closeToken(s)
-  return { ...s, token: s.token + c }
-}
-
-// Splits a shell command into its separate commands, each a token list. Quote-aware.
-export const shellSegments = (command: string): readonly (readonly string[])[] =>
-  closeSegment([...command].reduce(scanChar, EMPTY_SCAN)).segments
+import { shellSegments } from './shell.ts'
 
 // Index of the git subcommand in `words`, skipping git's own options (`-C dir`, `-c k=v`).
 const subcommandIndex = (words: readonly string[], i: number): number => {
@@ -84,8 +46,7 @@ export const stagingViolations = (command: string): readonly string[] =>
 
 // The package a repo-relative path belongs to, or undefined for shared and root-level files
 // (AGENTS.md, CONTRACTS.md, docs/, backlog/, configs) which any commit may carry.
-export const packageOf = (path: string): string | undefined =>
-  /^packages\/([^/]+)\//.exec(path)?.[1]
+export const packageOf = (path: string): string | undefined => /^packages\/([^/]+)\//.exec(path)?.[1]
 
 // Fails a staged path set that spans more than one package. This is a proxy, not a proof: it
 // cannot see who edited what, only that the commit is wider than one fence and so is the shape
@@ -96,15 +57,8 @@ export const wideCommitViolations = (paths: readonly string[]): readonly string[
   return [`this commit spans ${packages.length} packages (${packages.join(', ')}); a fenced commit touches one.`]
 }
 
-// The text a guard prints when it refuses: the rules broken, why the rule exists, then the
-// remedy. Agents read a hook's stderr as a correction, so it must say what to run instead.
-export const refusalMessage = (violations: readonly string[], remedy: readonly string[]): string =>
-  [
-    'Blocked by the repository staging guard.',
-    ...violations.map((v) => `  - ${v}`),
-    '',
-    'Agents here share one working tree, so a commit may only contain files you edited',
-    'yourself (AGENTS.md "Conventions"; per-track fences in CONTRACTS.md).',
-    '',
-    ...remedy,
-  ].join('\n')
+// Why a commit here may only contain files its author edited, shown with every staging refusal.
+export const STAGING_RATIONALE = [
+  'Agents here share one working tree, so a commit may only contain files you edited',
+  'yourself (AGENTS.md "Conventions"; per-track fences in CONTRACTS.md).',
+]

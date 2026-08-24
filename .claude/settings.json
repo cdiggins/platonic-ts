@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tsx packages/hooks/src/preToolUse.ts",
+            "command": "node --import tsx packages/hooks/src/preToolUse.ts",
             "timeout": 15
           }
         ]

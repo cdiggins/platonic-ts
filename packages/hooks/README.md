@@ -6,7 +6,10 @@ Claude Code hook scripts that append `HookEvent` JSONL lines to
 - `src/index.ts` — pure `HookEvent` type, `parseHookEventLine`, `formatHookEvent`.
 - `src/io.ts` — stdin payload reading + JSONL append (the only IO in this package).
 - `src/postToolUse.ts` — PostToolUse hook entry point.
-- `src/gitStaging.ts` — pure staging rules (shell command parsing, staged-path checks).
+- `src/shell.ts` — quote-aware reading of a command string; no rules of its own.
+- `src/refusal.ts` — the shared shape of a refusal: violations, rationale, remedy.
+- `src/gitStaging.ts` — pure staging rules (git command inspection, staged-path checks).
+- `src/powershell.ts` — PowerShell 5.1 dialect rules.
 - `src/preToolUse.ts` — PreToolUse hook entry point; refuses broad staging commands.
 - `src/preCommit.ts` — git pre-commit entry point; refuses commits spanning two packages.
 - `src/sessionStart.ts` — SessionStart hook entry point.
@@ -82,3 +85,20 @@ their own errors: a guard that breaks must not make the repository uncommittable
 Command parsing is shell-agnostic — it reads `tool_input.command`, which both the Bash and
 PowerShell tools carry. It is tuned for POSIX quoting; PowerShell's backtick escape is read as
 a quote character, which can hide a violation from the guard but only rarely invents one.
+
+## PowerShell dialect guard
+
+The same PreToolUse hook refuses `&&` and `||` in a command sent to the PowerShell tool, using
+`tool_name` to tell the two shells apart. Windows PowerShell 5.1 has no pipeline chain
+operators, so the parser rejects the whole command and nothing runs — including the part that
+would have worked. The refusal points at the Bash tool, or at `Cmdlet; if ($?) { Cmdlet }` for
+work that genuinely needs PowerShell.
+
+This is the only dialect rule here, and the bar for adding another is that the command is
+*always* wrong, provably, before it runs. Rules that are merely usually-wrong (`2>&1` on a
+native executable, `Set-Content` encoding defaults) stay in the tool description: a guard that
+cries wolf gets worked around rather than heeded.
+
+Measured on this machine, PowerShell 5.1 also starts in ~196ms against ~36ms for `sh`
+(`-NoProfile` changes nothing — it is .NET startup). That is the smaller cost. A parse error
+wastes a whole round-trip.
