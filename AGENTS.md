@@ -31,6 +31,7 @@ Ratchet counts escape hatches (`any`, `as`, `!`, `@ts-` and eslint-disable comme
 | `packages/mcp` | MCP server (BL-0026) over the code index: 33 tools — outlines, declarations, type-checked references, inferred types, diagnostics, dependency analyses, name-addressed editing, move/rename/signature transformations, checkpoint and revert, and the check gate. Every write tool takes `preview`. Prefer these over reading whole files, grepping, and text-matching edits — see `docs/mcp-server-2026-08-23.md` and `docs/refactoring-tools-built-2026-08-23.md`. |
 | `backlog/` | One markdown file per work item (format in CONTRACTS.md); `backlog/.ids/` holds one empty marker per id ever allocated. |
 | `docs/` | Design notes; the dashboard lists them. |
+| `docs/decisions/` | Architectural rulings, one per file, written by the `architect` agent. `active` rulings bind later work; `superseded` ones point at their replacement. |
 
 ## Conventions
 
@@ -43,6 +44,12 @@ git `pre-commit` hook enabled per clone with `npm run hooks:install`. Both live 
 `packages/hooks`.
 Pure functional style, zero runtime deps, relative imports across packages.
 Full rules in [docs/style-guide.md](docs/style-guide.md); breaking one requires PS-056.
+
+Placement is a decision, not a default. Before work that adds a new file, a new export
+surface, or touches a package boundary, check `docs/decisions/` for a governing ruling and
+spawn the `architect` agent if there is none; after a multi-agent wave lands, spawn it in
+review mode. The map table above is doctrine the architect maintains — its scope statements
+are rulings, not suggestions.
 
 ## Prose style (responses, docs, summaries, reports)
 
