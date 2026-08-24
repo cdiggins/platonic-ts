@@ -10,7 +10,7 @@ area: packages/check
 sprint:
 created: 2026-08-23
 closed:
-links: [packages/check/src/ratchet.ts, packages/mcp/src/inspect.ts, ratchet.json, docs/technical-debt-in-agentic-projects-2026-08-23.md]
+links: [packages/check/src/ratchet.ts, packages/mcp/src/inspect.ts, ratchet.json]
 ---
 
 ## Symptom
