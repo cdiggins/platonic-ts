@@ -37,6 +37,14 @@ restriction is stated in the prompt rather than enforced by the harness — the 
 agent type can reach every tool, so a violation is possible and is treated as a run defect to
 be noted, not silently accepted.
 
+Both scout's definition and the baselines' wrapper require a report to say plainly when the
+repository does not contain what the task asks for. Q4 is scored on whether the report states
+that absence anywhere, not on how it is worded or where it sits.
+
+Changes to `.claude/agents/scout.md` change what arm A is. Record the scout definition's commit
+in the results file, and do not compare arm A across runs that straddle an edit to it without
+saying so.
+
 ## The five questions
 
 Each prompt is sent verbatim. Fresh agent per query per arm; no shared context.
@@ -73,7 +81,7 @@ Each prompt is sent verbatim. Fresh agent per query per arm; no shared context.
 > the build fail when the checked-in file no longer matches what would be generated.
 
 - **Primary:** `staleBlockNames` (`packages/backlog/src/docsgen.ts:75`), `buildBlocks`
-  (`docsgen.ts:133`), `regenerateDocs` (`packages/backlog/src/docsgenIo.ts:128`)
+  (`docsgen.ts:133`), `regenerateDocs` (`packages/backlog/src/docsgenIo.ts:143`)
 - **Supporting:** `extractMarkers`, `spliceBlocks`, `unknownBlockNames`, `missingDescriptions`
   (`docsgen.ts`), `DocsRegenReport` (`docsgenIo.ts:31`), `docsRegen`
   (`packages/backlog/src/main.ts:123`), the `'docs'` member of `StepName`
@@ -91,7 +99,9 @@ Each prompt is sent verbatim. Fresh agent per query per arm; no shared context.
 - **Acceptable adjacent:** `runCheck` / `CheckReport` / `CheckStepResult`
   (`packages/check/src/run.ts`), `appendHookEvent` (`packages/hooks/src/io.ts:24`), the
   dashboard's SSE push.
-- A correct answer says plainly that this is not implemented before listing anything.
+- A correct answer states plainly that this is not implemented. An absence claim wider than
+  what the report actually searched for ("no environment variable reading either", which is
+  false here) is scored as a false lead, not as a hit.
 
 ### Q5 — quality trend over time (analogy jump)
 
@@ -99,7 +109,7 @@ Each prompt is sent verbatim. Fresh agent per query per arm; no shared context.
 > record a per-folder score and fail the build when it gets worse than the last recorded run.
 
 - **Primary:** `compareToBaseline` (`packages/check/src/ratchet.ts:55`), `applyBaseline`
-  (`packages/check/src/run.ts:62`)
+  (`packages/check/src/run.ts:61`)
 - **Supporting:** `scoreMetrics` (`packages/codemap/src/metrics.ts:114`), `folderMetrics`
   (`metrics.ts:324`), `RatchetCounts` (`ratchet.ts:13`), `CodeMetrics`
   (`packages/core/src/index.ts:220`), `ratchet.json`
@@ -139,6 +149,12 @@ Naming an adjacent primitive is neutral; claiming a notifier exists is a false l
    results, and an assessment.
 
 ## Maintenance
+
+Pin the commit before launching and check `git log` again when the last agent returns. Parallel
+agents commit to `main` during a run, and a commit that moves a primary lead turns correct
+`file:line` citations into apparent drift — that happened on the first run and produced
+scoring errors that had to be withdrawn. Verify claims against the commit the agents actually
+saw.
 
 The questions are pinned to declarations that exist today. When one of them moves or is
 deleted, the question is still valid but the ground truth above must be re-derived — a run that

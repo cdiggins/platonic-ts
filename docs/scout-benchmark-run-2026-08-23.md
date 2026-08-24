@@ -145,3 +145,58 @@ described that way.
 - Q3's ground truth was wrong when the run started: it named `docsRegen`, the CLI wrapper,
   where the substantive answer is `regenerateDocs` in `docsgenIo.ts`. The spec has been
   corrected and scoring used the corrected set.
+
+## Addendum — fixing the honest-negative failure
+
+Same day, after the run above. Twenty-one further arm A runs across four versions of
+`.claude/agents/scout.md`, testing whether the Q4 failure could be edited out. Only arm A
+changed; the baselines are the ones recorded above.
+
+The repository moved under the run: commit `ec1d405` landed from another session and shifted
+`packages/check/src/run.ts` (`runCheck` 206 → 190, `applyBaseline` 62 → 61) and
+`packages/backlog/src/docsgenIo.ts` (`regenerateDocs` 128 → 143). Several citations that looked
+like drift were correct against the commit the agent actually saw. The spec's ground truth and
+its maintenance section have been corrected; treat any `file:line` scoring across a mid-run
+commit as suspect until re-checked.
+
+### What was tried
+
+| Version | Change | Q4 absence stated | Primary hits | Arm A tokens |
+|---|---|---|---|---|
+| v0 | as benchmarked above | no | 10/11 | 95k |
+| v1 | added an existence check step; required a `verdict:` first line | yes, as a trailing note | 10/11 | 86k |
+| v2 | v1 plus one full worked example of verdict-then-leads | no | 9/11 | 100k |
+| v3 | dropped the `verdict:` line; kept the content rule | yes, but over-broad | 10/11 | 91k |
+| v4 | v3 plus "claim an absence only for what you searched for" | yes, first sentence, correctly scoped | Q4 only | — |
+
+### What the versions showed
+
+**A required output token did not land, twice.** The `verdict:` line was specified in v1 and
+demonstrated in a full example in v2. It appeared in zero of ten reports. The same definitions'
+*prohibitions* did land — v2's "no framing sentence" removed the "Based on my exploration…"
+opener that every v0 and v1 report carried. The scout model drops added format requirements
+while obeying added constraints on what not to write.
+
+**Rewriting the contract cost accuracy elsewhere.** v2's worked example used an abbreviated
+signature column, and the next Q1 report replaced real signatures with `export const
+repeatedExpressions`. v2 also produced the worst Q4 result of any version — no absence
+statement at all, despite the example in front of it showing exactly that case. Every edited
+version lost `takeSnapshot` on Q2, which v0 found.
+
+**The instruction that worked was about content, not shape.** v3 and v4 say when to state an
+absence, not how to format one, and both produced it. v4 states it in the first sentence.
+
+**Guarding against one failure produced the next.** v3 stated the absence and then widened it:
+"No existing Slack, webhook, environment variable reading, or HTTP client patterns found in the
+repo." The environment-variable half is false — `wideCommitAllowed`
+(`packages/hooks/src/io.ts:54`) and three `process.env` reads in `dashboard` and `codeview` do
+exactly that. An unverified absence is the same error as an unverified lead, pointing the other
+way, and it is more dangerous because absence claims are what stop someone looking. v4 adds a
+rule bounding an absence claim to what was actually searched, and its Q4 report opens with "no
+existing Slack integration code" and keeps the rest scoped.
+
+### Provenance
+
+Q1, Q2, Q3, and Q5 numbers for v3 come from a five-agent batch against v3. Q4's v4 result is a
+single agent run against v4, which differs from v3 by one rule that only fires on an absence
+claim. The other four questions have not been re-run against v4. The shipped definition is v4.
