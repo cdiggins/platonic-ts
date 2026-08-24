@@ -22,3 +22,4 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0011](BL-0011-conformance-score.md) | Score purity, complexity, and quality against the platonic ideals | idea | ? | ? | ? | repo | idea |  |
 | [BL-0022](BL-0022-caveman-final-answer-clarity.md) | Drop caveman default — measured saving ~2%, override cost ~11% of turns | idea | ? | ? | low | repo | idea |  |
 | [BL-0028](BL-0028-fuzzy-code-discovery.md) | Answer fuzzy availability questions with a ranked map and a scout agent | idea | ? | ? | ? | mcp | idea |  |
+| [BL-0033](BL-0033-assess-vs-superpowers.md) | Assess platonic-ts against the superpowers skills framework, on real repos | idea | ? | ? | ? | repo | idea |  |
