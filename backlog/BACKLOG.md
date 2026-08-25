@@ -25,3 +25,4 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0033](BL-0033-assess-vs-superpowers.md) | Assess platonic-ts against the superpowers skills framework, on real repos | idea | ? | ? | ? | repo | idea |  |
 | [BL-0034](BL-0034-architecture-opportunities-command.md) | Add a command that asks whether the architecture can be improved | idea | ? | ? | ? | repo | idea |  |
 | [BL-0035](BL-0035-code-review-agent.md) | Add a fresh-context code review agent with a bounded scope | idea | ? | ? | ? | repo | idea |  |
+| [BL-0036](BL-0036-planner-agent.md) | Add a planner agent that balances features, bugs, debt, and reviews | idea | ? | ? | ? | repo | idea |  |
