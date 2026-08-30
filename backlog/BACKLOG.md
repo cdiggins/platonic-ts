@@ -20,6 +20,7 @@ Item frontmatter is the source of truth; this file is a generated view.
 | [BL-0029](BL-0029-metrics-file-over-budget.md) | Split metrics.ts, which is over the PS-024 file budget | debt | p3 | S | low | codemap | ready |  |
 | [BL-0030](BL-0030-validate-skips-archive.md) | backlog validate and backfill-markers skip archived items | bug | p3 | S | low | packages/backlog | ready |  |
 | [BL-0037](BL-0037-init-agent-toolkit-install.md) | init installs the agent toolkit into a target repo | feature | p2 | M | low | init | idea |  |
+| [BL-0038](BL-0038-layout-agnostic-source-scanner.md) | Layout-agnostic source scanner shared by check, codemap, and mcp | debt | p2 | S | low | check | idea |  |
 | [BL-0011](BL-0011-conformance-score.md) | Score purity, complexity, and quality against the platonic ideals | idea | ? | ? | ? | repo | idea |  |
 | [BL-0022](BL-0022-caveman-final-answer-clarity.md) | Drop caveman default — measured saving ~2%, override cost ~11% of turns | idea | ? | ? | low | repo | idea |  |
 | [BL-0028](BL-0028-fuzzy-code-discovery.md) | Answer fuzzy availability questions with a ranked map and a scout agent | idea | ? | ? | ? | mcp | idea |  |
